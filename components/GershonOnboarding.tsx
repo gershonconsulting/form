@@ -367,7 +367,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
       console.error(e);
       setError('We hit a connection issue. Please try again.');
     } finally {
-      setIsLoading(false);
+              setIsLoading(false);
     }
   };
 
@@ -390,7 +390,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
       const cleaned = text.replace(/```json|```/g, '').trim();
       let parsed: any;
       try { parsed = JSON.parse(cleaned || JSON.stringify(data)); }
-      catch { parsed = { message: data.message || cleaned, capture: {}, currentSection, sectionComplete: false, readyForReview: false }; }
+              catch (_e) { parsed = { message: data.message || cleaned, capture: {}, currentSection, sectionComplete: false, readyForReview: false }; }
       }
 
       // Apply captured fields
