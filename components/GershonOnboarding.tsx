@@ -624,7 +624,7 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
       const test = normalizedUrl.startsWith('http') ? normalizedUrl : 'https://' + normalizedUrl;
       const u = new URL(test);
       return u.hostname.includes('.') && u.hostname.length > 3;
-    } catch { return false; }
+    } catch (_e) { return false; }
   })();
 
   const handleAnalyze = () => {
