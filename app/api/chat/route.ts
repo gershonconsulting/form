@@ -3,6 +3,7 @@ import { anthropic, MODEL } from '@/lib/anthropic';
 import { buildSystemPrompt } from '@/lib/prompts';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
