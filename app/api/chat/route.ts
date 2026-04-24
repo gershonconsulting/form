@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { anthropic, MODEL } from '@/lib/anthropic';
 import { buildSystemPrompt } from '@/lib/prompts';
 
-export const runtime = 'nodejs';
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
