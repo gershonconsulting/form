@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendEmail, buildEmailHtml } from '@/lib/email';
+import { generateOnboardingPDF } from '@/lib/pdf';
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
@@ -32,8 +34,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Submission failed' }, { status: 500 });
   }
 
-  // TODO: Fire notification to Olivier + Naomie via Resend/Postmark
-  // await sendNotification(data);
+  // ── Send confirmation email with PDF ──────────────────────────────
+  const clientEmail = responses?.email;
+  if (clientEmail) {
+    try {
+      const pdfBytes = await generateOnboardingPDF(responses);
+      const html = buildEmailHtml(responses, data.id);
+      const clientName = `${responses.firstName ?? ''} ${responses.lastName ?? ''}`.trim() || 'Client';
+      const company = responses.companyName ? ` — ${responses.companyName}` : '';
+
+      await sendEmail({
+        to: clientEmail,
+        cc: ['sales@gershonconsulting.com'],
+        subject: `Your Onboarding Summary${company} · Gershon Consulting`,
+        html,
+        pdfBytes,
+        pdfFilename: `gershon-onboarding-${clientName.toLowerCase().replace(/\s+/g, '-')}.pdf`,
+      });
+
+      console.log(`[submit] Email sent to ${clientEmail}`);
+    } catch (emailErr) {
+      // Don't fail the submission if email fails — log and continue
+      console.error('[submit] Email error:', emailErr);
+    }
+  } else {
+    console.warn('[submit] No email address in responses — skipping email');
+  }
 
   return NextResponse.json({ receiptId: data.id, success: true });
-      }
+}
