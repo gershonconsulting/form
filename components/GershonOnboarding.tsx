@@ -21,6 +21,12 @@ const BRAND = {
   muted: '#8A857E',
 };
 
+const BUILD_TIME =
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_BUILD_TIME) || 'dev';
+const BUILD_LABEL = BUILD_TIME === 'dev'
+  ? 'BUILD DEV'
+  : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '\u2011')}`;
+
 // Full field schema derived from the original Google Form
 const SECTIONS = [
   {
@@ -233,16 +239,21 @@ export default function GershonOnboarding() {
   const [error, setError] = useState(null);
   const [researchSource, setResearchSource] = useState(null); // { url, summary, searchedAt }
   const [researchStatus, setResearchStatus] = useState('');
-  const [sessionId] = useState(() => {
-    if (typeof window === 'undefined') return crypto.randomUUID();
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    if (sessionId) return;
+    if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     const existing = url.searchParams.get('s');
-    if (existing) return existing;
-    const newId = crypto.randomUUID();
-    url.searchParams.set('s', newId);
-    window.history.replaceState({}, '', url.toString());
-    return newId;
-  });
+    if (existing) {
+      setSessionId(existing);
+    } else {
+      const newId = crypto.randomUUID();
+      url.searchParams.set('s', newId);
+      window.history.replaceState({}, '', url.toString());
+      setSessionId(newId);
+    }
+  }, [sessionId]);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -543,6 +554,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Lock size={12} color={BRAND.muted} />
             <span className="mono" style={{ fontSize: 10, color: BRAND.muted, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Secured · Binding</span>
+            <span className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.1em', marginLeft: 12, paddingLeft: 12, borderLeft: `1px solid ${BRAND.rule}`, opacity: 0.7 }} title={`Build: ${BUILD_TIME}`}>{BUILD_LABEL}</span>
           </div>
         </div>
       </header>
@@ -831,7 +843,7 @@ function ConversationView({ messages, input, setInput, sendMessage, handleKey, i
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.15em' }}>
-              {completedCount} OF {totalSections} DONE
+              {completedCount} OF {totalSections} DONE · {progressPct}%
             </div>
             <div style={{ marginTop: 8, width: 140, height: 2, background: BRAND.rule, position: 'relative' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${progressPct}%`, background: BRAND.red, transition: 'width 0.3s' }} />
