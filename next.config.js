@@ -6,6 +6,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  env: {
+    NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
+  },
   webpack: (config) => {
     // cloudflare:sockets is a runtime-only Cloudflare module — don't bundle it
     config.externals = [
@@ -20,4 +23,5 @@ const nextConfig = {
     return config;
   },
 };
+
 module.exports = nextConfig;
