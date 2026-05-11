@@ -60,7 +60,6 @@ const SECTIONS = [
     title: 'Campaign Scope',
     fields: [
       { id: 'campaignDuration', label: 'How long do you plan to run this campaign', required: true, options: ['3 months (the bare minimum)', '6 months', '12 months', 'As long as we get good meetings', 'As long as we can afford it', 'Other'] },
-      { id: 'services', label: 'Services required (PROMOTE / NETWORK / ENGAGE)', required: true, multi: true, options: ['Social Content Creation (PROMOTE)', 'Social Selling (NETWORK)', 'Lead Generation Emailing (ENGAGE)'] },
     ],
   },
   {
@@ -254,6 +253,44 @@ export default function GershonOnboarding() {
       setSessionId(newId);
     }
   }, [sessionId]);
+  // Save progress to localStorage on every responses change
+  useEffect(() => {
+    if (!sessionId || Object.keys(responses).length === 0) return;
+    try {
+      localStorage.setItem(`gershon_session_${sessionId}`, JSON.stringify({
+        responses, messages, currentSection, sectionsDone, researchSource, savedAt: new Date().toISOString()
+      }));
+    } catch (_) {}
+  }, [responses, messages, currentSection, sectionsDone]);
+
+  // Restore progress if session exists in localStorage
+  const [showResume, setShowResume] = useState<{savedAt: string} | null>(null);
+  useEffect(() => {
+    if (!sessionId) return;
+    try {
+      const saved = localStorage.getItem(`gershon_session_${sessionId}`);
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      if (parsed.responses && Object.keys(parsed.responses).length > 0 && phase === 'url_intake') {
+        setShowResume({ savedAt: parsed.savedAt });
+        // Pre-load the data so it's ready if they resume
+        window.__gershonSaved = parsed;
+      }
+    } catch (_) {}
+  }, [sessionId]);
+
+  const resumeSession = () => {
+    const saved = (window as any).__gershonSaved;
+    if (!saved) return;
+    setResponses(saved.responses || {});
+    setMessages(saved.messages || []);
+    setCurrentSection(saved.currentSection || 'about_you');
+    setSectionsDone(saved.sectionsDone || {});
+    setResearchSource(saved.researchSource || null);
+    setShowResume(null);
+    setPhase('conversation');
+  };
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -276,6 +313,8 @@ export default function GershonOnboarding() {
   // Kick off the conversation (skip research path)
   const startConversation = async () => {
     setPhase('conversation');
+    // All clients get the full package — pre-capture this
+    setResponses(prev => ({ ...prev, services: ['Social Content Creation (PROMOTE)', 'Social Selling (NETWORK)', 'Lead Generation Emailing (ENGAGE)'] }));
     await callClaude([]);
   };
 
@@ -325,7 +364,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
       setResearchStatus('Drafting your onboarding…');
 
       const capture = parsed.capture || {};
-      setResponses(prev => ({ ...prev, ...capture, website: capture.website || url }));
+      setResponses(prev => ({ ...prev, services: ['Social Content Creation (PROMOTE)', 'Social Selling (NETWORK)', 'Lead Generation Emailing (ENGAGE)'], ...capture, website: capture.website || url }));
       setResearchSource({
         url,
         summary: parsed.summary || '',
@@ -333,9 +372,11 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
         capturedFields: Object.keys(capture),
       });
 
+      // All clients get the full package — pre-capture this
+      const fullCapture = { services: ['Social Content Creation (PROMOTE)', 'Social Selling (NETWORK)', 'Lead Generation Emailing (ENGAGE)'], ...capture, website: capture.website || url };
       // Hand off to conversation — the assistant will see the pre-fills and confirm them
       setPhase('conversation');
-      await callClaudeWithContext([], { ...responses, ...capture, website: capture.website || url }, sectionsDone, {
+      await callClaudeWithContext([], { ...responses, ...fullCapture }, sectionsDone, {
         url,
         summary: parsed.summary || '',
         searchedAt: new Date().toISOString(),
@@ -435,6 +476,21 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
     setInput('');
 
     // Build API conversation history — alternating user/assistant text only
+    const history = newMessages.map(m => ({
+      role: m.role,
+      content: m.role === 'assistant'
+        ? JSON.stringify({ message: m.content, capture: {}, currentSection, sectionComplete: false, readyForReview: false })
+        : m.content,
+    }));
+    await callClaude(history);
+  };
+
+  const sendOptionMessage = async (text: string) => {
+    if (!text.trim() || isLoading) return;
+    const userMsg = { role: 'user', content: text.trim(), ts: Date.now() };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setInput('');
     const history = newMessages.map(m => ({
       role: m.role,
       content: m.role === 'assistant'
@@ -561,7 +617,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
 
       {/* ============ PHASE: URL INTAKE ============ */}
       {phase === 'url_intake' && (
-        <UrlIntakeScreen onAnalyze={researchAndStart} onSkip={startConversation} error={error} />
+        <UrlIntakeScreen onAnalyze={researchAndStart} onSkip={startConversation} error={error} showResume={showResume} onResume={resumeSession} />
       )}
 
       {/* ============ PHASE: RESEARCHING ============ */}
@@ -576,6 +632,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
           input={input}
           setInput={setInput}
           sendMessage={sendMessage}
+          sendOptionMessage={sendOptionMessage}
           handleKey={handleKey}
           isLoading={isLoading}
           error={error}
@@ -624,7 +681,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
 // URL Intake Screen — first step, gathers website for research
 // ============================================================================
 
-function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
+function UrlIntakeScreen({ onAnalyze, onSkip, error, showResume, onResume }) {
   const [url, setUrl] = useState('');
   const [touched, setTouched] = useState(false);
 
@@ -651,6 +708,21 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
         <div className="mono" style={{ fontSize: 11, color: BRAND.red, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 28 }}>
           — Onboarding Intake · Est. 10–15 min
         </div>
+        {showResume && (
+          <div style={{ marginBottom: 32, padding: '16px 20px', background: BRAND.paper, border: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+            <div>
+              <div className="mono" style={{ fontSize: 10, color: BRAND.red, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 4 }}>
+                Saved session found
+              </div>
+              <div style={{ fontSize: 13, color: BRAND.charcoalLight }}>
+                You have an incomplete intake saved from {new Date(showResume.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}. Pick up where you left off?
+              </div>
+            </div>
+            <button className="btn-primary" onClick={onResume} style={{ whiteSpace: 'nowrap', padding: '10px 20px', fontSize: 13 }}>
+              Resume →
+            </button>
+          </div>
+        )}
         <h1 className="serif" style={{ fontSize: 56, lineHeight: 1.05, fontWeight: 400, color: BRAND.ink, margin: 0, letterSpacing: '-0.02em' }}>
           Let's start with <span style={{ fontStyle: 'italic', color: BRAND.red }}>your website.</span>
         </h1>
@@ -809,7 +881,7 @@ function ResearchingScreen({ status }) {
 // Conversation View
 // ============================================================================
 
-function ConversationView({ messages, input, setInput, sendMessage, handleKey, isLoading, error, currentSection, sectionsDone, responses, inputRef, messagesEndRef, jumpToReview, researchSource }) {
+function ConversationView({ messages, input, setInput, sendMessage, sendOptionMessage, handleKey, sessionId = null, isLoading, error, currentSection, sectionsDone, responses, inputRef, messagesEndRef, jumpToReview, researchSource }) {
   const currentSectionObj = SECTIONS.find(s => s.id === currentSection) || SECTIONS[0];
   const totalSections = SECTIONS.length;
   const completedCount = Object.values(sectionsDone).filter(Boolean).length;
@@ -854,7 +926,13 @@ function ConversationView({ messages, input, setInput, sendMessage, handleKey, i
         {/* Messages */}
         <div className="scroll-area" style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
           {messages.map((m, i) => (
-            <MessageBubble key={i} role={m.role} content={m.content} />
+            <MessageBubble
+              key={i}
+              role={m.role}
+              content={m.content}
+              isLast={i === messages.length - 1}
+              onOptionClick={!isLoading ? sendOptionMessage : null}
+            />
           ))}
           {isLoading && (
             <div className="msg-in" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -911,11 +989,14 @@ function ConversationView({ messages, input, setInput, sendMessage, handleKey, i
             <span className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em' }}>
               ENTER TO SEND · SHIFT+ENTER FOR NEW LINE
             </span>
-            {Object.keys(responses).length >= 4 && (
-              <button onClick={jumpToReview} className="mono" style={{ fontSize: 10, color: BRAND.red, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                Skip to review →
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              <SaveProgressButton responses={responses} messages={messages} currentSection={currentSection} sectionsDone={sectionsDone} researchSource={researchSource} />
+              {Object.keys(responses).length >= 4 && (
+                <button onClick={jumpToReview} className="mono" style={{ fontSize: 10, color: BRAND.red, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  Skip to review →
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -926,25 +1007,131 @@ function ConversationView({ messages, input, setInput, sendMessage, handleKey, i
   );
 }
 
-function MessageBubble({ role, content }) {
+
+// ============================================================================
+// Option parsing — detect choices in AI messages and render as buttons
+// ============================================================================
+
+function parseOptions(text: string): string[] | null {
+  // Pattern 1: "Your options are: A, B, C, or D"
+  const optMatch = text.match(/(?:options are|choices are|your options)[:\s]+([^?!\n]{10,}[?!]?)\s*$/im);
+  if (optMatch) {
+    const raw = optMatch[1].replace(/[?!]$/, '').trim();
+    const parts = raw
+      .split(/,\s*/)
+      .map(s => s.replace(/^(?:or|and)\s+/i, '').trim())
+      .filter(s => s.length > 0 && s.length < 100);
+    if (parts.length >= 2 && parts.length <= 8) return parts;
+  }
+
+  // Pattern 2: Numbered list (1. ..., 2. ...)
+  const lines = text.split('\n');
+  const numbered = lines.filter(l => /^\s*\d+\.\s+\S/.test(l));
+  if (numbered.length >= 2 && numbered.length <= 8) {
+    return numbered.map(l => l.replace(/^\s*\d+\.\s+/, '').trim()).filter(Boolean);
+  }
+
+  // Pattern 3: Bullet list (-, •, ·, *)
+  const bulleted = lines.filter(l => /^\s*[-•·*]\s+\S/.test(l));
+  if (bulleted.length >= 2 && bulleted.length <= 8) {
+    return bulleted.map(l => l.replace(/^\s*[-•·*]\s+/, '').trim()).filter(Boolean);
+  }
+
+  // Pattern 4: Yes/No confirmation questions
+  if (/does that (?:match|sound right|look right|seem right|ring true|work)\??/i.test(text) ||
+      /is that (?:correct|right|accurate|good)\??/i.test(text) ||
+      /(?:yes|correct|no|not quite)[,.]?\s+(?:or|and)\s+(?:yes|no|correct|not quite)/i.test(text)) {
+    return ['Yes, correct', 'No, let me correct that'];
+  }
+
+  return null;
+}
+
+function MessageBubble({ role, content, onOptionClick = null, isLast = false }) {
   const isAssistant = role === 'assistant';
   return (
     <div className="msg-in" style={{ display: 'flex', gap: 12, flexDirection: isAssistant ? 'row' : 'row-reverse', alignItems: 'flex-start' }}>
       {isAssistant ? <Avatar /> : <UserAvatar />}
-      <div style={{
-        background: isAssistant ? BRAND.cream : BRAND.ink,
-        color: isAssistant ? BRAND.ink : 'white',
-        padding: '14px 18px',
-        maxWidth: '78%',
-        fontSize: 14.5,
-        lineHeight: 1.55,
-        borderLeft: isAssistant ? `2px solid ${BRAND.red}` : 'none',
-      }}>
-        {content.split('\n').map((line, i) => (
-          <div key={i} style={{ marginTop: i > 0 ? 8 : 0 }}>{line}</div>
-        ))}
+      <div style={{ maxWidth: '78%' }}>
+        <div style={{
+          background: isAssistant ? BRAND.cream : BRAND.ink,
+          color: isAssistant ? BRAND.ink : 'white',
+          padding: '14px 18px',
+          fontSize: 14.5,
+          lineHeight: 1.55,
+          borderLeft: isAssistant ? `2px solid ${BRAND.red}` : 'none',
+        }}>
+          {content.split('\n').map((line, i) => (
+            <div key={i} style={{ marginTop: i > 0 ? 8 : 0 }}>{line}</div>
+          ))}
+        </div>
+        {isAssistant && isLast && onOptionClick && (() => {
+          const opts = parseOptions(content);
+          if (!opts) return null;
+          return (
+            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {opts.map((opt, i) => (
+                <OptionButton key={i} label={opt} onClick={() => onOptionClick(opt)} />
+              ))}
+            </div>
+          );
+        })()}
       </div>
     </div>
+  );
+}
+
+
+function OptionButton({ label, onClick }: { label: string; onClick: () => void }) {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: hovered ? BRAND.red : 'transparent',
+        border: `1px solid ${BRAND.red}`,
+        color: hovered ? 'white' : BRAND.red,
+        padding: '7px 16px',
+        fontSize: 13,
+        cursor: 'pointer',
+        fontFamily: 'Inter, sans-serif',
+        fontWeight: 500,
+        letterSpacing: '0.01em',
+        transition: 'all 0.15s',
+        lineHeight: 1.4,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+
+function SaveProgressButton({ responses, messages, currentSection, sectionsDone, researchSource }) {
+  const [saved, setSaved] = React.useState(false);
+  const sessionId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('s') : null;
+  if (!sessionId || Object.keys(responses).length === 0) return null;
+
+  const handleSave = () => {
+    try {
+      localStorage.setItem(`gershon_session_${sessionId}`, JSON.stringify({
+        responses, messages, currentSection, sectionsDone, researchSource, savedAt: new Date().toISOString()
+      }));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (_) {}
+  };
+
+  return (
+    <button
+      onClick={handleSave}
+      className="mono"
+      style={{ fontSize: 10, color: saved ? BRAND.red : BRAND.muted, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'color 0.2s' }}
+    >
+      {saved ? '✓ Saved' : 'Save progress'}
+    </button>
   );
 }
 
