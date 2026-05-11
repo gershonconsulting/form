@@ -1037,11 +1037,22 @@ function parseOptions(text: string): string[] | null {
     return bulleted.map(l => l.replace(/^\s*[-•·*]\s+/, '').trim()).filter(Boolean);
   }
 
-  // Pattern 4: Yes/No confirmation questions
-  if (/does that (?:match|sound right|look right|seem right|ring true|work)\??/i.test(text) ||
-      /is that (?:correct|right|accurate|good)\??/i.test(text) ||
-      /(?:yes|correct|no|not quite)[,.]?\s+(?:or|and)\s+(?:yes|no|correct|not quite)/i.test(text)) {
-    return ['Yes, correct', 'No, let me correct that'];
+  // Pattern 4: Yes/No confirmation questions — broad detection
+  const yesNoTriggers = [
+    /does that (?:match|sound right|look right|seem right|ring true|work)\??/i,
+    /is that (?:correct|right|accurate|good)\??/i,
+    /(?:if so|if that(?:'s| is) right)/i,
+    /\bare you ([A-Z][a-z]+)/,           // "are you Vincent...?"
+    /is (?:this|that) (?:you|correct|right|accurate)\??/i,
+    /(?:confirm|confirming) (?:that|your|you)/i,
+    /does that (?:land|match|work) for you\??/i,
+    /\bcan you confirm\b/i,
+    /\bdo(?:es)? that sound\b/i,
+    /\bwould that be\b/i,
+    /\bshall we\b/i,
+  ];
+  if (yesNoTriggers.some(r => r.test(text))) {
+    return ['Yes, correct', 'No, let me correct that', 'Other'];
   }
 
   return null;
