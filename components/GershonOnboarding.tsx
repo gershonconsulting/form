@@ -1043,7 +1043,7 @@ function parseOptions(text: string): string[] | null {
     /does that (?:match|sound right|look right|seem right|ring true|work)\??/i,
     /is that (?:correct|right|accurate|good)\??/i,
     /(?:if so|if that(?:'s| is) right)/i,
-    /\bare you ([A-Z][a-z]+)/,           // "are you Vincent...?"
+    /\b[aA]re you ([A-Z][a-z]+)/,           // "are you Vincent...?"
     /is (?:this|that) (?:you|correct|right|accurate)\??/i,
     /(?:confirm|confirming) (?:that|your|you)/i,
     /does that (?:land|match|work) for you\??/i,
