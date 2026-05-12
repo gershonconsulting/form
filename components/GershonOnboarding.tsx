@@ -888,7 +888,7 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOptionMe
   const progressPct = Math.round((completedCount / totalSections) * 100);
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px', display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32, minHeight: 'calc(100vh - 72px)' }}>
+    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '20px 24px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px 260px', gap: 20, minHeight: 'calc(100vh - 72px)' }}>
 
       {/* CHAT COLUMN */}
       <div style={{ display: 'flex', flexDirection: 'column', background: BRAND.paper, border: `1px solid ${BRAND.rule}`, minHeight: 0 }}>
@@ -937,7 +937,7 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOptionMe
           {isLoading && (
             <div className="msg-in" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <Avatar />
-              <div style={{ background: BRAND.cream, padding: '14px 18px', maxWidth: '75%' }}>
+              <div style={{ background: BRAND.cream, padding: '14px 18px', maxWidth: '85%' }}>
                 <span className="dot"></span><span className="dot" style={{ marginLeft: 4 }}></span><span className="dot" style={{ marginLeft: 4 }}></span>
               </div>
             </div>
@@ -1002,7 +1002,8 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOptionMe
       </div>
 
       {/* SIDEBAR */}
-      <Sidebar currentSection={currentSection} sectionsDone={sectionsDone} responses={responses} />
+      <ProgressPanel currentSection={currentSection} sectionsDone={sectionsDone} />
+      <CapturedPanel responses={responses} />
     </div>
   );
 }
@@ -1063,7 +1064,7 @@ function MessageBubble({ role, content, onOptionClick = null, isLast = false }) 
   return (
     <div className="msg-in" style={{ display: 'flex', gap: 12, flexDirection: isAssistant ? 'row' : 'row-reverse', alignItems: 'flex-start' }}>
       {isAssistant ? <Avatar /> : <UserAvatar />}
-      <div style={{ maxWidth: '78%' }}>
+      <div style={{ maxWidth: '88%' }}>
         <div style={{
           background: isAssistant ? BRAND.cream : BRAND.ink,
           color: isAssistant ? BRAND.ink : 'white',
@@ -1072,9 +1073,37 @@ function MessageBubble({ role, content, onOptionClick = null, isLast = false }) 
           lineHeight: 1.55,
           borderLeft: isAssistant ? `2px solid ${BRAND.red}` : 'none',
         }}>
-          {content.split('\n').map((line, i) => (
-            <div key={i} style={{ marginTop: i > 0 ? 8 : 0 }}>{line}</div>
-          ))}
+          {(() => {
+            const parsedOpts = isAssistant && isLast && onOptionClick ? parseOptions(content) : null;
+            const lines = content.split('\n');
+            const optSet = new Set((parsedOpts || []).map(o => o.trim()));
+            const visibleLines = parsedOpts
+              ? lines.filter(l => {
+                  const t = l.trim();
+                  if (!t) return true;
+                  if (/^\s*\d+\.\s+/.test(l)) return false;
+                  if (/^\s*[-•·*]\s+/.test(l)) return false;
+                  if (optSet.has(t)) return false;
+                  return true;
+                })
+              : lines;
+            const stripCitations = (s) => s
+              .replace(/<cite[^>]*>([^<]*)<\/cite>/g, '$1')
+              .replace(/\[\d+(?:-\d+(?:,\d+(?:-\d+)?)*)?\]/g, '');
+            const urlRe = /(https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+)/g;
+            return visibleLines.map((line, i) => {
+              const cleaned = stripCitations(line);
+              const parts = cleaned.split(urlRe);
+              return (
+                <div key={i} style={{ marginTop: i > 0 ? 6 : 0 }}>
+                  {parts.map((p, j) => p.match(/^https?:\/\//)
+                    ? <a key={j} href={p} target="_blank" rel="noopener noreferrer" style={{ color: BRAND.red, textDecoration: 'underline', textUnderlineOffset: 2 }}>{p}</a>
+                    : <span key={j}>{p}</span>
+                  )}
+                </div>
+              );
+            });
+          })()}
         </div>
         {isAssistant && isLast && onOptionClick && (() => {
           const opts = parseOptions(content);
@@ -1166,64 +1195,56 @@ function UserAvatar() {
 // Sidebar — progress + captured data
 // ============================================================================
 
-function Sidebar({ currentSection, sectionsDone, responses }) {
+function ProgressPanel({ currentSection, sectionsDone }) {
+  const completedCount = Object.values(sectionsDone).filter(Boolean).length;
+  const totalSections = SECTIONS.length;
+  const progressPct = Math.round((completedCount / totalSections) * 100);
   return (
-    <aside style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-      {/* Progress */}
-      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '22px 24px' }}>
-        <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 18 }}>
-          Progress
+    <aside style={{ position: 'sticky', top: 88, alignSelf: 'start', maxHeight: 'calc(100vh - 110px)', overflowY: 'auto' }}>
+      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '18px 20px' }}>
+        <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 6 }}>Progress</div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
+          <div className="serif" style={{ fontSize: 32, fontWeight: 500, color: BRAND.red, lineHeight: 1 }}>{progressPct}%</div>
+          <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em' }}>{completedCount} of {totalSections}</div>
+        </div>
+        <div style={{ marginBottom: 16, width: '100%', height: 3, background: BRAND.rule, position: 'relative' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${progressPct}%`, background: BRAND.red, transition: 'width 0.3s' }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {SECTIONS.map(s => {
             const done = sectionsDone[s.id];
             const isCurrent = currentSection === s.id;
             return (
-              <div key={s.id} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '10px 0',
-                borderBottom: `1px solid ${BRAND.rule}`,
-                opacity: done || isCurrent ? 1 : 0.5,
-              }}>
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${BRAND.rule}`, opacity: done || isCurrent ? 1 : 0.5 }}>
                 <div style={{ flexShrink: 0 }}>
-                  {done ? <Check size={14} color={BRAND.red} strokeWidth={2.5} /> : isCurrent ? <CircleDot size={14} color={BRAND.red} /> : <Circle size={14} color={BRAND.muted} />}
+                  {done ? <Check size={13} color={BRAND.red} strokeWidth={2.5} /> : isCurrent ? <CircleDot size={13} color={BRAND.red} /> : <Circle size={13} color={BRAND.muted} />}
                 </div>
-                <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em', width: 20 }}>
-                  {s.number}
-                </div>
-                <div className="serif" style={{ fontSize: 13, color: isCurrent ? BRAND.red : BRAND.ink, fontStyle: isCurrent ? 'italic' : 'normal', fontWeight: isCurrent ? 500 : 400 }}>
-                  {s.title}
-                </div>
+                <div className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.1em', width: 18 }}>{s.number}</div>
+                <div className="serif" style={{ fontSize: 12, color: isCurrent ? BRAND.red : BRAND.ink, fontStyle: isCurrent ? 'italic' : 'normal', fontWeight: isCurrent ? 500 : 400 }}>{s.title}</div>
               </div>
             );
           })}
         </div>
       </div>
+    </aside>
+  );
+}
 
-      {/* Captured so far */}
-      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '22px 24px', flex: 1, minHeight: 0 }}>
-        <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 18 }}>
-          Captured
-        </div>
+function CapturedPanel({ responses }) {
+  return (
+    <aside style={{ position: 'sticky', top: 88, alignSelf: 'start', maxHeight: 'calc(100vh - 110px)', overflowY: 'auto' }}>
+      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '18px 20px' }}>
+        <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 16 }}>Captured</div>
         {Object.keys(responses).length === 0 ? (
-          <div style={{ fontSize: 13, color: BRAND.muted, fontStyle: 'italic' }}>
-            Your answers will appear here as we go.
-          </div>
+          <div style={{ fontSize: 12, color: BRAND.muted, fontStyle: 'italic' }}>Your answers will appear here as we go.</div>
         ) : (
-          <div className="scroll-area" style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 480, overflowY: 'auto' }}>
+          <div className="scroll-area" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {Object.entries(responses).map(([key, value]) => {
               const fieldDef = findFieldDef(key);
               return (
                 <div key={key}>
-                  <div className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    {fieldDef?.label || key}
-                  </div>
-                  <div style={{ fontSize: 13, color: BRAND.ink, marginTop: 4, lineHeight: 1.4 }}>
-                    {Array.isArray(value) ? value.join(', ') : String(value)}
-                  </div>
+                  <div className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{fieldDef?.label || key}</div>
+                  <div style={{ fontSize: 12, color: BRAND.ink, marginTop: 3, lineHeight: 1.4 }}>{Array.isArray(value) ? value.join(', ') : String(value)}</div>
                 </div>
               );
             })}
