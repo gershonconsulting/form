@@ -238,7 +238,7 @@ Sections completed: ${Object.keys(sectionsDoneState).filter(k => sectionsDoneSta
 4. Did you suggest meetings/month higher than 10? If yes, set to 10.
 5. Are you asking about services (Q13) or meetings count (Q14)? STOP — both auto-set.
 6. For multi-select fields, are options COMBINATIONS not individual items? If single, rewrite as combinations.
-\`;
+`;
 }
 
 // Note appended outside the buildSystemPrompt function as a documentation comment for future maintainers.
