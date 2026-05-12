@@ -1043,14 +1043,20 @@ function parseOptions(text: string): string[] | null {
     /does that (?:match|sound right|look right|seem right|ring true|work)\??/i,
     /is that (?:correct|right|accurate|good)\??/i,
     /(?:if so|if that(?:'s| is) right)/i,
-    /\b[aA]re you ([A-Z][a-z]+)/,           // "are you Vincent...?"
-    /is (?:this|that) (?:you|correct|right|accurate)\??/i,
+    /\bare you ([A-Z][a-z]+)/i,           // sentence-initial or mid-sentence "Are you X?"
+    /\bare (?:these|those) (?:the )?(?:correct|right|best|accurate|good)/i,
+    /\bis (?:this|that) (?:you|correct|right|accurate|the best|the right)/i,
     /(?:confirm|confirming) (?:that|your|you)/i,
     /does that (?:land|match|work) for you\??/i,
     /\bcan you confirm\b/i,
-    /\bdo(?:es)? that sound\b/i,
-    /\bwould that be\b/i,
+    /\bdo(?:es)? (?:this|that|these|those) sound\b/i,
+    /\bwould (?:that|this|these|those) be\b/i,
     /\bshall we\b/i,
+    /\b(?:would|do) you (?:prefer|want to)/i,
+    /(?:correct|update|change), or/i,
+    /\bsound good\b/i,
+    /\bgot it\??/i,
+    /\bmake sense\??/i,
   ];
   if (yesNoTriggers.some(r => r.test(text))) {
     return ['Yes, correct', 'No, let me correct that', 'Other'];
