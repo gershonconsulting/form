@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { sendEmail, buildEmailHtml } from '@/lib/email';
+import { sendEmail } from '@/lib/email';
 import { generateOnboardingPDF } from '@/lib/pdf';
 
 export const runtime = 'edge';
@@ -34,31 +34,72 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Submission failed' }, { status: 500 });
   }
 
-  // ── Send confirmation email with PDF ──────────────────────────────
+  // ── Send signed-form email with PDF attachment ──────────────────────
+  // Subject:  Filled out form - Lead Generation Campaign for COMPANYNAME by Gershon Consulting
+  // To:      the client's email
+  // Cc:      form@gershonconsulting.com (Gershon team archive)
+  // Body:    Hello FIRSTNAME, [boilerplate], — Gershon Consulting
+  // Attach:  generated PDF of the responses
   const clientEmail = responses?.email;
-  if (clientEmail) {
-    try {
-      const pdfBytes = await generateOnboardingPDF(responses);
-      const html = buildEmailHtml(responses, data.id);
-      const clientName = `${responses.firstName ?? ''} ${responses.lastName ?? ''}`.trim() || 'Client';
-      const company = responses.companyName ? ` — ${responses.companyName}` : '';
+  const firstName = (responses?.firstName ?? '').toString().trim() || 'there';
+  const lastName = (responses?.lastName ?? '').toString().trim();
+  const fullName = `${firstName} ${lastName}`.trim() || 'Client';
+  const companyName = (responses?.companyName ?? '').toString().trim() || 'your company';
+  const teamArchive = (process.env.SUBMIT_ARCHIVE_TO || 'form@gershonconsulting.com').trim();
 
-      await sendEmail({
-        to: clientEmail,
-        cc: ['sales@gershonconsulting.com'],
-        subject: `Your Onboarding Summary${company} · Gershon Consulting`,
-        html,
-        pdfBytes,
-        pdfFilename: `gershon-onboarding-${clientName.toLowerCase().replace(/\s+/g, '-')}.pdf`,
-      });
+  try {
+    const pdfBytes = await generateOnboardingPDF(responses);
+    const subject = `Filled out form - Lead Generation Campaign for ${companyName} by Gershon Consulting`;
+    const pdfFilename = `gershon-form-${companyName.toLowerCase().replace(/\s+/g, '-')}.pdf`;
+    const greetingHtml = `<p>Hello ${firstName.replace(/</g, '&lt;')},</p>
+<p>Thank you for taking the time to complete the form for the launch of your Lead Generation campaign. Please find attached a copy of the completed questionnaire.</p>
+<p>We remain at your disposal if you need any assistance.</p>
+<p>Best regards,<br/>— Gershon Consulting</p>`;
 
-      console.log(`[submit] Email sent to ${clientEmail}`);
-    } catch (emailErr) {
-      // Don't fail the submission if email fails — log and continue
-      console.error('[submit] Email error:', emailErr);
+    // Email to the client (if they provided one). Cc the team archive so they have a copy.
+    if (clientEmail) {
+      try {
+        await sendEmail({
+          to: clientEmail,
+          cc: [teamArchive],
+          subject,
+          html: greetingHtml,
+          pdfBytes,
+          pdfFilename,
+        });
+        console.log(`[submit] Email sent to ${clientEmail} + cc ${teamArchive}`);
+      } catch (emailErr) {
+        console.error('[submit] Client email failed, will still attempt team-only:', emailErr);
+        // Fallback: try to deliver to the team archive at least so the submission isn't lost.
+        try {
+          await sendEmail({
+            to: teamArchive,
+            subject: `[client email failed] ${subject}`,
+            html: greetingHtml + `<hr/><p><strong>Note:</strong> the email to ${clientEmail.replace(/</g, '&lt;')} bounced or failed. Original submission attached.</p>`,
+            pdfBytes,
+            pdfFilename,
+          });
+        } catch (teamErr) {
+          console.error('[submit] Team archive fallback also failed:', teamErr);
+        }
+      }
+    } else {
+      // No client email captured — still archive to the team
+      console.warn('[submit] No client email — sending team archive only');
+      try {
+        await sendEmail({
+          to: teamArchive,
+          subject: `[no client email] ${subject}`,
+          html: greetingHtml + `<hr/><p><strong>Note:</strong> the client did not provide an email address.</p>`,
+          pdfBytes,
+          pdfFilename,
+        });
+      } catch (teamErr) {
+        console.error('[submit] Team-only email failed:', teamErr);
+      }
     }
-  } else {
-    console.warn('[submit] No email address in responses — skipping email');
+  } catch (pdfErr) {
+    console.error('[submit] PDF generation failed (continuing without email):', pdfErr);
   }
 
   return NextResponse.json({ receiptId: data.id, success: true });
