@@ -131,6 +131,9 @@ const SECTIONS = [
   },
 ];
 
+// Total question count across every section — used for the "Q[N]/TOTAL" badge in chat
+const TOTAL_QUESTIONS = SECTIONS.reduce((sum, s) => sum + s.fields.length, 0);
+
 // Acknowledgments required before signature
 const ACKNOWLEDGMENTS = [
   { id: 'ack_3month', text: 'I acknowledge and understand that this project is launched for a minimum of 3 months.' },
@@ -1069,7 +1072,10 @@ function MessageBubble({ role, content, onOptionClick = null, isLast = false }) 
   const isAssistant = role === 'assistant';
   return (
     <div className="msg-in" style={{ display: 'flex', gap: 12, flexDirection: isAssistant ? 'row' : 'row-reverse', alignItems: 'flex-start' }}>
-      {isAssistant ? <Avatar /> : <UserAvatar />}
+      {isAssistant ? <Avatar questionNumber={(() => {
+        const m = content.match(/\*\*Q(\d+)\.\s/);
+        return m ? parseInt(m[1], 10) : null;
+      })()} /> : <UserAvatar />}
       <div style={{ maxWidth: '88%' }}>
         <div style={{
           background: isAssistant ? BRAND.cream : BRAND.ink,
@@ -1197,7 +1203,15 @@ function SaveProgressButton({ responses, messages, currentSection, sectionsDone,
   );
 }
 
-function Avatar() {
+function Avatar({ questionNumber = null }: { questionNumber?: number | null }) {
+  if (questionNumber != null) {
+    return (
+      <div style={{ width: 56, height: 56, background: BRAND.red, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginTop: 2, color: 'white', textAlign: 'center', lineHeight: 1 }} title={`Question ${questionNumber} of ${TOTAL_QUESTIONS}`}>
+        <span className="serif" style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em' }}>Q{questionNumber}</span>
+        <span className="mono" style={{ fontSize: 9, opacity: 0.8, marginTop: 2, letterSpacing: '0.1em' }}>of {TOTAL_QUESTIONS}</span>
+      </div>
+    );
+  }
   return (
     <div style={{ width: 32, height: 32, background: BRAND.red, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
       <span className="serif" style={{ color: 'white', fontSize: 15, fontWeight: 600, fontStyle: 'italic' }}>G</span>
