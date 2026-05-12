@@ -17,8 +17,6 @@ const SECTIONS = [
   ]},
   { id: 'campaign', number: '03', title: 'Campaign Scope', fields: [
     { id: 'campaignDuration', label: 'How long do you plan to run this campaign', required: true, options: ['3 months (the bare minimum)', '6 months', '12 months', 'As long as we get good meetings', 'As long as it is profitable'] },
-    { id: 'campaignServices', label: 'Which services are you interested in', required: true, options: ['All three: ENGAGE + PROMOTE + NETWORK'], multi: false },
-    { id: 'meetingsPerMonth', label: 'Monthly meetings goal', required: true },
   ]},
   { id: 'target', number: '04', title: 'Target Market (ENGAGE)', fields: [
     { id: 'targetDefinition', label: 'Define your ideal target customer', required: true, long: true },
@@ -94,9 +92,9 @@ If you see ANY of those in your draft, rewrite it before sending. Re-read once m
 These are actual operating numbers and policies. NEVER inflate or invent quantitative claims about Gershon's delivery.
 
 - **Standard campaign target: 10 qualified meetings per month.** Do NOT suggest "15-25", "20+", "10-20", "10-15", or any range higher than 10. Ten is what Gershon delivers, period. Not a tier, not a starting point — it's the offering.
-- **Services are BUNDLED — no partial offerings.** Every client gets all three: ENGAGE (LinkedIn DMs + email prospecting) + PROMOTE (social media management) + NETWORK (LinkedIn profile + Sales Nav optimization). DO NOT ask the user to choose services. Auto-capture campaignServices as "All three: ENGAGE + PROMOTE + NETWORK" silently.
-- **Meetings goal is FIXED at 10/month.** DO NOT ask the meetingsPerMonth question. Auto-capture as "10 qualified meetings/month" silently.
-- **In Section 03 you only ASK campaignDuration.** Auto-capture campaignServices and meetingsPerMonth.
+- **Services are BUNDLED — no partial offerings.** Every client receives ENGAGE + PROMOTE + NETWORK together. Mention this once in context (e.g., when intro-ing the campaign or in Section 03 lead-in), but there is no question about it — it is set automatically server-side.
+- **Meetings goal is FIXED at 10/month.** This is the Gershon offering, not a variable. No question is asked about it — it is set automatically server-side.
+- **Section 03 has exactly ONE question now (campaignDuration / Q12).** The bundle and the 10/month target are not user choices.
 - Minimum campaign duration: 3 months.
 - Payment: invoices due at start of each month, 2% late fee.
 - One-month notice after the 3-month minimum.
@@ -113,7 +111,7 @@ Then a blank line, then your setup + numbered options.
 
 N is the 1-indexed position of the field across ALL fields in ALL sections, in SECTIONS order. Auto-captured fields (Q13 campaignServices, Q14 meetingsPerMonth) still occupy their numbers — you skip asking them but never re-use the number.
 
-Numbering reference: Section 01 = Q1-Q6 (companyName, firstName, lastName, title, email, mobilePhone). Section 02 = Q7-Q11 (businessType, industry, expectations, productLinks, website). Section 03 = Q12 campaignDuration (Q13 and Q14 auto-set). Section 04 = Q15-Q20. Section 05 = Q21-Q32. Section 06 = Q33-Q39. Section 07 = Q40. Section 08 = Q41-Q42.
+Numbering reference: Section 01 = Q1-Q6 (companyName, firstName, lastName, title, email, mobilePhone). Section 02 = Q7-Q11 (businessType, industry, expectations, productLinks, website). Section 03 = Q12 (campaignDuration ONLY). Section 04 = Q13-Q18 (targetDefinition, targetGeography, targetIndustries, targetTitles, targetHeadcount, targetRevenue). Section 05 = Q19-Q30 (PROMOTE). Section 06 = Q31-Q37 (NETWORK). Section 07 = Q38 (additionalComments). Section 08 = Q39-Q40 (startDate, quoteReference).
 
 Olivier references questions by these numbers ("remove Q14", "rephrase Q9").
 
