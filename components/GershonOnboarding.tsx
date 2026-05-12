@@ -610,7 +610,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Lock size={12} color={BRAND.muted} />
             <span className="mono" style={{ fontSize: 10, color: BRAND.muted, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Secured · Binding</span>
-            <span className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.1em', marginLeft: 12, paddingLeft: 12, borderLeft: `1px solid ${BRAND.rule}`, opacity: 0.7 }} title={`Build: ${BUILD_TIME}`}>{BUILD_LABEL}</span>
+            <span className="mono" style={{ fontSize: 11, color: BRAND.red, letterSpacing: '0.12em', marginLeft: 14, paddingLeft: 14, borderLeft: `1px solid ${BRAND.rule}`, fontWeight: 600 }} title={`Full build timestamp: ${BUILD_TIME}`}>{BUILD_LABEL}</span>
           </div>
         </div>
       </header>
@@ -1096,10 +1096,26 @@ function MessageBubble({ role, content, onOptionClick = null, isLast = false }) 
               const parts = cleaned.split(urlRe);
               return (
                 <div key={i} style={{ marginTop: i > 0 ? 6 : 0 }}>
-                  {parts.map((p, j) => p.match(/^https?:\/\//)
-                    ? <a key={j} href={p} target="_blank" rel="noopener noreferrer" style={{ color: BRAND.red, textDecoration: 'underline', textUnderlineOffset: 2 }}>{p}</a>
-                    : <span key={j}>{p}</span>
-                  )}
+                  {parts.map((p, j) => {
+                    if (p.match(/^https?:\/\//)) {
+                      return <a key={j} href={p} target="_blank" rel="noopener noreferrer" style={{ color: BRAND.red, textDecoration: 'underline', textUnderlineOffset: 2 }}>{p}</a>;
+                    }
+                    // Parse markdown **bold** segments
+                    const boldRe = /\*\*([^*]+?)\*\*/g;
+                    const segs = [];
+                    let last = 0; let m;
+                    while ((m = boldRe.exec(p)) !== null) {
+                      if (m.index > last) segs.push({ text: p.slice(last, m.index), bold: false });
+                      segs.push({ text: m[1], bold: true });
+                      last = m.index + m[0].length;
+                    }
+                    if (last < p.length) segs.push({ text: p.slice(last), bold: false });
+                    if (segs.length === 0) return <span key={j}>{p}</span>;
+                    return <span key={j}>{segs.map((s, k) => s.bold
+                      ? <strong key={k} className="serif" style={{ fontSize: '1.05em', color: BRAND.red, fontWeight: 600 }}>{s.text}</strong>
+                      : <span key={k}>{s.text}</span>
+                    )}</span>;
+                  })}
                 </div>
               );
             });
