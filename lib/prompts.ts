@@ -11,7 +11,7 @@ const SECTIONS = [
   { id: 'business', number: '02', title: 'Your Business', fields: [
     { id: 'businessType', label: 'Type of business', required: true },
     { id: 'industry', label: 'Industry', required: true },
-    { id: 'expectations', label: 'Expectations for this campaign', required: true, long: true },
+    { id: 'expectations', label: 'Expectations for this campaign', required: true, long: true, multi: true },
     { id: 'productLinks', label: 'Product/service page links', required: false, long: true },
     { id: 'website', label: 'Website address', required: true },
   ]},
@@ -23,13 +23,13 @@ const SECTIONS = [
   { id: 'target', number: '04', title: 'Target Market (ENGAGE)', fields: [
     { id: 'targetDefinition', label: 'Define your ideal target customer', required: true, long: true },
     { id: 'targetGeography', label: 'Geographic focus', required: true },
-    { id: 'targetIndustries', label: 'Target industries', required: true, long: true },
-    { id: 'targetTitles', label: 'Target job titles / decision-makers', required: true, long: true },
+    { id: 'targetIndustries', label: 'Target industries', required: true, long: true, multi: true },
+    { id: 'targetTitles', label: 'Target job titles / decision-makers', required: true, long: true, multi: true },
     { id: 'targetHeadcount', label: 'Target company headcount range', required: true },
     { id: 'targetRevenue', label: 'Target revenue range (min-max)', required: true },
   ]},
   { id: 'promote', number: '05', title: 'Social Networks (PROMOTE)', optional: true, fields: [
-    { id: 'top5Highlights', label: 'Top 5 things to highlight on social', required: true, long: true },
+    { id: 'top5Highlights', label: 'Top 5 things to highlight on social', required: true, long: true, multi: true },
     { id: 'otherContent', label: 'Other content to include', required: false, long: true },
     { id: 'dontWantContent', label: 'Content you do NOT want', required: true, long: true },
     { id: 'twitterHashtags', label: 'Twitter hashtags to focus on', required: false },

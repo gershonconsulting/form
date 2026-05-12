@@ -49,7 +49,7 @@ const SECTIONS = [
     fields: [
       { id: 'businessType', label: 'Type of business', required: true },
       { id: 'industry', label: 'Industry', required: true },
-      { id: 'expectations', label: 'Expectations for this campaign', required: true, long: true },
+      { id: 'expectations', label: 'Expectations for this campaign', required: true, long: true, multi: true },
       { id: 'productLinks', label: 'Product/service page links', required: false, long: true },
       { id: 'website', label: 'Website address', required: true },
     ],
@@ -83,7 +83,7 @@ const SECTIONS = [
     title: 'Social Networks (PROMOTE)',
     optional: true,
     fields: [
-      { id: 'top5Highlights', label: 'Top 5 things to highlight on social', required: true, long: true },
+      { id: 'top5Highlights', label: 'Top 5 things to highlight on social', required: true, long: true, multi: true },
       { id: 'otherContent', label: 'Other content to include', required: false, long: true },
       { id: 'dontWantContent', label: 'Content you do NOT want', required: true, long: true },
       { id: 'twitterHashtags', label: 'Twitter hashtags to focus on', required: false },
@@ -133,6 +133,12 @@ const SECTIONS = [
 
 // Total question count across every section — used for the "Q[N]/TOTAL" badge in chat
 const TOTAL_QUESTIONS = SECTIONS.reduce((sum, s) => sum + s.fields.length, 0);
+
+// Flat field index (1-based) → field definition. Used to look up multi-select status from a Q[N] reference.
+const FLAT_FIELDS: any[] = SECTIONS.flatMap(s => s.fields);
+function fieldForQuestionNumber(n: number) {
+  return FLAT_FIELDS[n - 1] || null;
+}
 
 // Acknowledgments required before signature
 const ACKNOWLEDGMENTS = [
@@ -1136,6 +1142,13 @@ function MessageBubble({ role, content, onOptionClick = null, isLast = false }) 
         {isAssistant && isLast && onOptionClick && (() => {
           const opts = parseOptions(content);
           if (!opts) return null;
+          // Detect multi-select: parse the Q[N] header, look up the field, check `multi`
+          const qMatch = content.match(/\*\*Q(\d+)\.\s/);
+          const fieldDef = qMatch ? fieldForQuestionNumber(parseInt(qMatch[1], 10)) : null;
+          const isMulti = fieldDef && fieldDef.multi === true;
+          if (isMulti) {
+            return <MultiSelectOptions options={opts} onSubmit={onOptionClick} />;
+          }
           return (
             <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {opts.map((opt, i) => (
@@ -1176,6 +1189,68 @@ function OptionButton({ label, onClick }: { label: string; onClick: () => void }
   );
 }
 
+
+function MultiSelectOptions({ options, onSubmit }: { options: string[]; onSubmit: (text: string) => void }) {
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  // The last option is typically "Type a different answer" — treat as fallback escape (single-click)
+  const lastOpt = options[options.length - 1];
+  const isFallback = lastOpt && lastOpt.toLowerCase().includes('type a different');
+  const checkable = isFallback ? options.slice(0, -1) : options;
+
+  const toggle = (opt: string) => setSelected(prev => ({ ...prev, [opt]: !prev[opt] }));
+  const selectedList = checkable.filter(o => selected[o]);
+  const canSubmit = selectedList.length > 0;
+
+  return (
+    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+        Select all that apply
+      </div>
+      {checkable.map((opt, i) => (
+        <label key={i} style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          padding: '10px 14px',
+          border: `1px solid ${selected[opt] ? BRAND.red : BRAND.rule}`,
+          background: selected[opt] ? BRAND.redLight : BRAND.paper,
+          color: selected[opt] ? BRAND.redDark : BRAND.ink,
+          cursor: 'pointer',
+          fontFamily: 'Inter, sans-serif',
+          fontSize: 13.5,
+          lineHeight: 1.4,
+          transition: 'all 0.12s',
+        }}>
+          <input
+            type="checkbox"
+            checked={!!selected[opt]}
+            onChange={() => toggle(opt)}
+            style={{ marginTop: 3, accentColor: BRAND.red, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }}
+          />
+          <span>{opt}</span>
+        </label>
+      ))}
+      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        <button
+          onClick={() => canSubmit && onSubmit(selectedList.join(' + '))}
+          disabled={!canSubmit}
+          className="btn-primary"
+          style={{
+            padding: '10px 18px', fontSize: 13.5,
+            background: canSubmit ? BRAND.red : '#CFC9C1',
+            color: 'white', border: 'none', cursor: canSubmit ? 'pointer' : 'not-allowed',
+            fontFamily: 'Inter, sans-serif',
+          }}
+        >
+          Submit selections{selectedList.length > 0 ? ` (${selectedList.length})` : ''}
+        </button>
+        {isFallback && (
+          <button onClick={() => onSubmit(lastOpt)} className="btn-ghost" style={{ padding: '10px 14px', fontSize: 13 }}>
+            {lastOpt}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function SaveProgressButton({ responses, messages, currentSection, sectionsDone, researchSource }) {
   const [saved, setSaved] = React.useState(false);
