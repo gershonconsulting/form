@@ -1,7 +1,6 @@
-// Temporary diagnostic endpoint. Confirms whether the Anthropic call is
-// hitting the API and surfaces the real error text + status code so we can
-// see WHY chat/research are failing on the live deploy.
-// Remove this route after the issue is resolved.
+// Temporary diagnostic endpoint. Surfaces the actual Anthropic call status
+// + response body so we can see why chat/research fall into their fallbacks.
+// Remove after the issue is resolved.
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'edge';
