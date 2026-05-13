@@ -608,8 +608,8 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
       <header style={{ borderBottom: `1px solid ${BRAND.rule}`, background: BRAND.paper, position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 1280, margin: '0 auto', padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 32, height: 32, background: BRAND.red, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span className="serif" style={{ color: 'white', fontSize: 18, fontWeight: 600, fontStyle: 'italic' }}>G</span>
+            <div style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <GershonLogo size={36} />
             </div>
             <div>
               <div className="mono" style={{ fontSize: 10, color: BRAND.muted, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Gershon Consulting</div>
@@ -894,7 +894,16 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOptionMe
   const currentSectionObj = SECTIONS.find(s => s.id === currentSection) || SECTIONS[0];
   const totalSections = SECTIONS.length;
   const completedCount = Object.values(sectionsDone).filter(Boolean).length;
-  const progressPct = Math.round((completedCount / totalSections) * 100);
+  // Field-level progress: count captured non-empty responses out of all fields.
+  // This advances after every answered question, not only at section boundaries.
+  const capturedFieldCount = Object.keys(responses).filter(k => {
+    const v = (responses as any)[k];
+    if (v == null) return false;
+    if (typeof v === 'string') return v.trim() !== '';
+    if (Array.isArray(v)) return v.length > 0;
+    return true;
+  }).length;
+  const progressPct = Math.min(100, Math.round((capturedFieldCount / TOTAL_QUESTIONS) * 100));
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', padding: '20px 24px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px 260px', gap: 20, minHeight: 'calc(100vh - 72px)' }}>
@@ -924,7 +933,7 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOptionMe
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.15em' }}>
-              {completedCount} OF {totalSections} DONE · {progressPct}%
+              {capturedFieldCount} OF {TOTAL_QUESTIONS} ANSWERED · {progressPct}%
             </div>
             <div style={{ marginTop: 8, width: 140, height: 2, background: BRAND.rule, position: 'relative' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${progressPct}%`, background: BRAND.red, transition: 'width 0.3s' }} />
@@ -1011,7 +1020,7 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOptionMe
       </div>
 
       {/* SIDEBAR */}
-      <ProgressPanel currentSection={currentSection} sectionsDone={sectionsDone} />
+      <ProgressPanel currentSection={currentSection} sectionsDone={sectionsDone} responses={responses} />
       <CapturedPanel responses={responses} />
     </div>
   );
@@ -1323,6 +1332,38 @@ function SaveProgressButton({ responses, messages, currentSection, sectionsDone,
   );
 }
 
+// ============================================================================
+// Gershon AI logo — inline SVG (renders crisp at any size). Used in the
+// header tile (top-left) and the assistant avatar fallback for non-question
+// messages. The circular logomark mirrors gershon.ai: dark disc, red outer
+// ring, red Golden-Gate bridge silhouette, cyan AI nodes.
+// ============================================================================
+function GershonLogo({ size = 32 }: { size?: number }) {
+  const s = size;
+  return (
+    <svg width={s} height={s} viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-label="Gershon AI" style={{ display: 'block' }}>
+      {/* dark disc */}
+      <circle cx="32" cy="32" r="30" fill="#1a1a1a" />
+      {/* red outer ring */}
+      <circle cx="32" cy="32" r="30" fill="none" stroke="#CC3333" strokeWidth="3" />
+      {/* bridge: two suspension towers + roadway + cables */}
+      <g stroke="#CC3333" fill="none" strokeLinecap="round">
+        {/* roadway */}
+        <line x1="14" y1="40" x2="50" y2="40" strokeWidth="2.2" />
+        {/* towers */}
+        <line x1="22" y1="40" x2="22" y2="22" strokeWidth="2.4" />
+        <line x1="42" y1="40" x2="42" y2="22" strokeWidth="2.4" />
+        {/* main suspension cables (catenary approximated) */}
+        <path d="M14 30 Q22 22 32 32 Q42 22 50 30" strokeWidth="1.6" />
+      </g>
+      {/* AI nodes — small cyan dots around the ring */}
+      <circle cx="14" cy="22" r="2" fill="#7CDDF5" />
+      <circle cx="50" cy="22" r="2" fill="#7CDDF5" />
+      <circle cx="32" cy="54" r="2" fill="#7CDDF5" />
+    </svg>
+  );
+}
+
 function Avatar({ questionNumber = null }: { questionNumber?: number | null }) {
   if (questionNumber != null) {
     return (
@@ -1333,8 +1374,8 @@ function Avatar({ questionNumber = null }: { questionNumber?: number | null }) {
     );
   }
   return (
-    <div style={{ width: 32, height: 32, background: BRAND.red, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
-      <span className="serif" style={{ color: 'white', fontSize: 15, fontWeight: 600, fontStyle: 'italic' }}>G</span>
+    <div style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+      <GershonLogo size={32} />
     </div>
   );
 }
@@ -1351,17 +1392,26 @@ function UserAvatar() {
 // Sidebar — progress + captured data
 // ============================================================================
 
-function ProgressPanel({ currentSection, sectionsDone }) {
+function ProgressPanel({ currentSection, sectionsDone, responses }: { currentSection: string; sectionsDone: Record<string, boolean>; responses: Record<string, any> }) {
   const completedCount = Object.values(sectionsDone).filter(Boolean).length;
   const totalSections = SECTIONS.length;
-  const progressPct = Math.round((completedCount / totalSections) * 100);
+  // Field-level pct (every answered Q moves the bar). Sections list below still
+  // shows section-level checkmarks so the user can see structural progress too.
+  const capturedFieldCount = Object.keys(responses).filter(k => {
+    const v = responses[k];
+    if (v == null) return false;
+    if (typeof v === 'string') return v.trim() !== '';
+    if (Array.isArray(v)) return v.length > 0;
+    return true;
+  }).length;
+  const progressPct = Math.min(100, Math.round((capturedFieldCount / TOTAL_QUESTIONS) * 100));
   return (
     <aside style={{ position: 'sticky', top: 88, alignSelf: 'start', maxHeight: 'calc(100vh - 110px)', overflowY: 'auto' }}>
       <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '18px 20px' }}>
         <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 6 }}>Progress</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
           <div className="serif" style={{ fontSize: 32, fontWeight: 500, color: BRAND.red, lineHeight: 1 }}>{progressPct}%</div>
-          <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em' }}>{completedCount} of {totalSections}</div>
+          <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em' }}>{capturedFieldCount} of {TOTAL_QUESTIONS}</div>
         </div>
         <div style={{ marginBottom: 16, width: '100%', height: 3, background: BRAND.rule, position: 'relative' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${progressPct}%`, background: BRAND.red, transition: 'width 0.3s' }} />
