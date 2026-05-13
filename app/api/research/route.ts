@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'url required' }, { status: 400 });
   }
 
+  // DEBUG MODE: ?diag=1 in the body returns the raw upstream error for triage.
+  const isDiag = (req.headers.get('x-diag') === '1') || (req.nextUrl.searchParams.get('diag') === '1');
+
   const prompt = `A new client is starting the Gershon Consulting onboarding for a US lead-generation campaign. Their website is: ${url}
 
 Use web_search to research this company. Return a single JSON object — ONLY fields you are confident about. Return ONLY the JSON. No markdown fences.
@@ -59,13 +62,28 @@ Use web_search to research this company. Return a single JSON object — ONLY fi
     const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { summary: '', capture: {} };
     return NextResponse.json(parsed);
   } catch (e: any) {
-    // Fail soft — the UI can let the client fill manually.
-    // Log enough to diagnose in Cloudflare logs.
     console.error('[research] Anthropic call failed:', {
       message: e?.message,
       status: e?.status,
       body: e?.body,
     });
+    if (isDiag) {
+      const apiKey = process.env.ANTHROPIC_API_KEY || '';
+      return NextResponse.json(
+        {
+          summary: '',
+          capture: {},
+          _diag: {
+            model: MODEL,
+            errorMessage: e?.message,
+            upstreamStatus: e?.status,
+            upstreamBody: (e?.body || '').slice(0, 1000),
+            keyPrefix: apiKey.slice(0, 12),
+            keyLen: apiKey.length,
+          },
+        },
+      );
+    }
     return NextResponse.json({ summary: '', capture: {} });
   }
 }
