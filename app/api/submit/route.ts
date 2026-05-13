@@ -7,8 +7,23 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  const payload = await req.json();
-  const { sessionId, responses, acknowledgments, termsAccepted, signature, conversationTranscript } = payload;
+  let payload: any;
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 });
+  }
+  if (!payload || typeof payload !== 'object') {
+    return NextResponse.json({ error: 'payload required' }, { status: 400 });
+  }
+  const {
+    sessionId,
+    responses = {},
+    acknowledgments = {},
+    termsAccepted = false,
+    signature = { name: '', date: '' },
+    conversationTranscript = '',
+  } = payload;
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || '';
   const userAgent = req.headers.get('user-agent') || '';

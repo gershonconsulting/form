@@ -7,8 +7,13 @@
 // Public surface is intentionally compatible with the SDK call site —
 // `anthropic.messages.create({ model, max_tokens, ... })` — so the existing
 // route handlers in app/api/* don't need to change.
+//
+// 2026-05-13: bumped model from claude-sonnet-4-20250514 (deprecated) to
+// claude-sonnet-4-6. Deprecated model was returning 4xx from the API, which
+// bubbled up as a raw 500 on /api/research, /api/chat (no try/catch in the
+// route handlers). See commit notes for the route-level try/catch fix.
 
-export const MODEL = 'claude-sonnet-4-20250514';
+export const MODEL = 'claude-sonnet-4-6';
 
 type MessagesCreateParams = {
   model?: string;
@@ -35,7 +40,12 @@ async function messagesCreate(params: MessagesCreateParams) {
   });
   if (!res.ok) {
     const errText = await res.text().catch(() => '<no body>');
-    throw new Error(`Anthropic API error ${res.status}: ${errText}`);
+    // Surface the status code so the caller can decide what to do (model
+    // deprecation gives 4xx, quota gives 429, etc.).
+    const err: any = new Error(`Anthropic API error ${res.status}: ${errText}`);
+    err.status = res.status;
+    err.body = errText;
+    throw err;
   }
   return res.json();
 }

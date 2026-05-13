@@ -6,7 +6,14 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const { url } = await req.json();
+  let url: unknown;
+  try {
+    const body = await req.json();
+    url = body?.url;
+  } catch {
+    return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 });
+  }
+
   if (!url || typeof url !== 'string') {
     return NextResponse.json({ error: 'url required' }, { status: 400 });
   }
@@ -33,25 +40,32 @@ Use web_search to research this company. Return a single JSON object — ONLY fi
   }
 }`;
 
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 3000,
-    tools: [{ type: 'web_search_20250305', name: 'web_search' } as any],
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  const text = response.content
-    .filter((b) => b.type === 'text')
-    .map((b: any) => b.text)
-    .join('\n')
-    .replace(/```json|```/g, '')
-    .trim();
-
   try {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 3000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' } as any],
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = response.content
+      .filter((b: any) => b.type === 'text')
+      .map((b: any) => b.text)
+      .join('\n')
+      .replace(/```json|```/g, '')
+      .trim();
+
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { summary: '', capture: {} };
     return NextResponse.json(parsed);
-  } catch {
+  } catch (e: any) {
+    // Fail soft — the UI can let the client fill manually.
+    // Log enough to diagnose in Cloudflare logs.
+    console.error('[research] Anthropic call failed:', {
+      message: e?.message,
+      status: e?.status,
+      body: e?.body,
+    });
     return NextResponse.json({ summary: '', capture: {} });
   }
-    }
+}
