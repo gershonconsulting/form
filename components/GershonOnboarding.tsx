@@ -1253,27 +1253,72 @@ function MultiSelectOptions({ options, onSubmit }: { options: string[]; onSubmit
 }
 
 function SaveProgressButton({ responses, messages, currentSection, sectionsDone, researchSource }) {
-  const [saved, setSaved] = React.useState(false);
+  const [status, setStatus] = React.useState<'idle' | 'saving' | 'saved-emailed' | 'saved-no-email' | 'error'>('idle');
   const sessionId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('s') : null;
   if (!sessionId || Object.keys(responses).length === 0) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setStatus('saving');
+    // Always save to localStorage so progress survives the tab session at minimum
     try {
       localStorage.setItem(`gershon_session_${sessionId}`, JSON.stringify({
         responses, messages, currentSection, sectionsDone, researchSource, savedAt: new Date().toISOString()
       }));
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
     } catch (_) {}
+    // If we have the user's email, email them the resume link so they can come back from any device
+    const email = (responses?.email || '').toString().trim();
+    if (email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      try {
+        const resumeUrl = typeof window !== 'undefined' ? window.location.href : '';
+        const res = await fetch('/api/save-progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            firstName: responses?.firstName || '',
+            companyName: responses?.companyName || '',
+            resumeUrl,
+          }),
+        });
+        if (res.ok) {
+          setStatus('saved-emailed');
+        } else {
+          setStatus('saved-no-email');
+        }
+      } catch (_) {
+        setStatus('saved-no-email');
+      }
+    } else {
+      setStatus('saved-no-email');
+    }
+    setTimeout(() => setStatus('idle'), 5000);
   };
+
+  const label =
+    status === 'saving' ? 'Saving…' :
+    status === 'saved-emailed' ? `✓ Saved — resume link emailed to ${responses?.email}` :
+    status === 'saved-no-email' ? '✓ Saved — bookmark this URL to resume' :
+    status === 'error' ? '✗ Save failed, try again' :
+    'Save progress';
 
   return (
     <button
       onClick={handleSave}
+      disabled={status === 'saving'}
       className="mono"
-      style={{ fontSize: 10, color: saved ? BRAND.red : BRAND.muted, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'color 0.2s' }}
+      style={{
+        fontSize: 10,
+        color: status === 'idle' ? BRAND.muted : BRAND.red,
+        background: 'none',
+        border: 'none',
+        cursor: status === 'saving' ? 'wait' : 'pointer',
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        transition: 'color 0.2s',
+      }}
+      title={status === 'saved-no-email' && !responses?.email ? 'Provide your email earlier in the form to get a resume link emailed automatically' : ''}
     >
-      {saved ? '✓ Saved' : 'Save progress'}
+      {label}
     </button>
   );
 }
