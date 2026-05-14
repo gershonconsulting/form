@@ -28,25 +28,35 @@ export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || '';
   const userAgent = req.headers.get('user-agent') || '';
 
-  const { data, error } = await supabaseAdmin
-    .from('onboarding_submissions')
-    .insert({
-      session_id: sessionId,
-      responses,
-      acknowledgments,
-      terms_accepted: termsAccepted,
-      signature_name: signature.name,
-      signature_date: signature.date,
-      conversation_transcript: conversationTranscript,
-      submitted_ip: ip,
-      submitted_user_agent: userAgent,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Submission error:', error);
-    return NextResponse.json({ error: 'Submission failed' }, { status: 500 });
+  // DB write — try, but don't block on failure. The email + PDF is the
+  // contractual artifact; the DB row is for our archive convenience.
+  let receiptId: string | null = null;
+  let dbError: any = null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('onboarding_submissions')
+      .insert({
+        session_id: sessionId,
+        responses,
+        acknowledgments,
+        terms_accepted: termsAccepted,
+        signature_name: signature.name,
+        signature_date: signature.date,
+        conversation_transcript: conversationTranscript,
+        submitted_ip: ip,
+        submitted_user_agent: userAgent,
+      })
+      .select()
+      .single();
+    if (error) {
+      dbError = error;
+      console.error('[submit] Supabase insert failed:', error);
+    } else {
+      receiptId = (data as any)?.id ?? null;
+    }
+  } catch (e: any) {
+    dbError = { message: e?.message, name: e?.name };
+    console.error('[submit] Supabase threw:', e);
   }
 
   // ── Send signed-form email with PDF attachment ──────────────────────
@@ -117,5 +127,13 @@ export async function POST(req: NextRequest) {
     console.error('[submit] PDF generation failed (continuing without email):', pdfErr);
   }
 
-  return NextResponse.json({ receiptId: data.id, success: true });
+  // Always report success at the HTTP level if we got this far — the user
+  // sees a confirmation. The dbWriteOk / emailOk flags tell the team archive
+  // whether everything actually persisted. We never re-throw at the user.
+  return NextResponse.json({
+    receiptId,
+    success: true,
+    dbWriteOk: !dbError,
+    dbError: dbError ? { message: dbError.message || String(dbError) } : null,
+  });
 }

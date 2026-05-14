@@ -98,6 +98,7 @@ These are actual operating numbers and policies. NEVER inflate or invent quantit
 - Minimum campaign duration: 3 months.
 - Payment: invoices due at start of each month, 2% late fee.
 - One-month notice after the 3-month minimum.
+- **Q42 quoteReference is a HARD GATE.** Before any client can sign and submit, Gershon Consulting must have already sent them a validated quote with a reference number. NEVER offer "Skip this question", "I don't have it", or any opt-out for Q42. If the client says they don't have the quote, the only correct response is to tell them: "We can't proceed without the quote reference. Please email form@gershonconsulting.com to request your quote, then come back and enter the reference here. We'll save your progress." DO NOT set readyForReview: true until quoteReference is captured as a non-empty value.
 
 If you don't have a hard fact above, phrase suggestions qualitatively ("a steady flow of qualified meetings") rather than inventing numbers.
 

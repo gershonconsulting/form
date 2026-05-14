@@ -519,7 +519,12 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
   const jumpToReview = () => setPhase('review');
 
   const allAcknowledged = ACKNOWLEDGMENTS.every(a => acknowledgments[a.id]);
-  const canSign = allAcknowledged && termsAccepted && signatureName.trim().length >= 2 && signatureDate;
+  // HARD GATE: quoteReference is mandatory. The onboarding cannot be signed and
+  // submitted without a quote reference from Gershon Consulting — there is no
+  // valid contractual basis without it. If the client doesn't have one, they
+  // must email form@gershonconsulting.com BEFORE signing.
+  const hasQuoteReference = typeof responses.quoteReference === 'string' && responses.quoteReference.trim().length >= 3;
+  const canSign = allAcknowledged && termsAccepted && signatureName.trim().length >= 2 && signatureDate && hasQuoteReference;
 
   const sign = async () => {
     if (!canSign) return;
@@ -673,6 +678,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
           signatureDate={signatureDate}
           setSignatureDate={setSignatureDate}
           canSign={canSign}
+          hasQuoteReference={hasQuoteReference}
           sign={sign}
           backToChat={() => setPhase('conversation')}
         />
@@ -1473,7 +1479,7 @@ function findFieldDef(fieldId) {
 // Review Screen
 // ============================================================================
 
-function ReviewScreen({ responses, setResponses, editingField, setEditingField, editBuffer, setEditBuffer, acknowledgments, setAcknowledgments, termsAccepted, setTermsAccepted, signatureName, setSignatureName, signatureDate, setSignatureDate, canSign, sign, backToChat }) {
+function ReviewScreen({ responses, setResponses, editingField, setEditingField, editBuffer, setEditBuffer, acknowledgments, setAcknowledgments, termsAccepted, setTermsAccepted, signatureName, setSignatureName, signatureDate, setSignatureDate, canSign, hasQuoteReference, sign, backToChat }) {
 
   const startEdit = (fieldId) => {
     setEditingField(fieldId);
@@ -1656,6 +1662,18 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
           </div>
         </div>
 
+        {!hasQuoteReference && (
+          <div style={{ marginTop: 28, padding: '14px 18px', border: `1px solid ${BRAND.red}`, background: '#fef2f2', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="mono" style={{ fontSize: 11, color: BRAND.red, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>Quote reference required</div>
+            <div style={{ fontSize: 14, color: BRAND.ink, lineHeight: 1.5 }}>
+              You can't sign and submit this onboarding without the reference number of the quote Gershon Consulting validated with you. That number links this intake to the contractual scope and pricing of your campaign.
+            </div>
+            <div style={{ fontSize: 13, color: BRAND.ink, lineHeight: 1.5 }}>
+              If you don't have the quote: please email <a href="mailto:form@gershonconsulting.com" style={{ color: BRAND.red, fontWeight: 500 }}>form@gershonconsulting.com</a> to request it. Once you have the reference, return to this form and enter it under Q42 — "Reference of the validated quote" — then come back here to sign.
+            </div>
+          </div>
+        )}
+
         <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em' }}>
             BY SIGNING, THIS INTAKE BECOMES BINDING ON THE PROJECT
@@ -1664,6 +1682,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
             className="btn-primary"
             onClick={sign}
             disabled={!canSign}
+            title={!hasQuoteReference ? 'A quote reference from Gershon Consulting is required before signing.' : ''}
             style={{ padding: '14px 32px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 10 }}
           >
             Sign &amp; submit <ArrowRight size={16} />
