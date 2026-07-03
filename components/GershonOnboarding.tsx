@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, CircleDot, Circle, Send, Sparkles, ArrowRight, Download, AlertCircle, Pencil, Lock } from 'lucide-react';
+import { Check, CircleDot, Circle, Send, Sparkles, ArrowRight, Download, AlertCircle, Pencil, Lock, Paperclip, FileText } from 'lucide-react';
 
 // ============================================================================
 // GERSHON CONSULTING — INTERACTIVE ONBOARDING FORM
@@ -21,11 +21,13 @@ const BRAND = {
   muted: '#8A857E',
 };
 
+// Build stamp — replaced at build time. NEXT_PUBLIC_BUILD_TIME is set in next.config.js
+// so it's available in client components. Falls back to 'dev' for local development.
 const BUILD_TIME =
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_BUILD_TIME) || 'dev';
 const BUILD_LABEL = BUILD_TIME === 'dev'
   ? 'BUILD DEV'
-  : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '\u2011')}`;
+  : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -49,7 +51,7 @@ const SECTIONS = [
     fields: [
       { id: 'businessType', label: 'Type of business', required: true },
       { id: 'industry', label: 'Industry', required: true },
-      { id: 'expectations', label: 'Expectations for this campaign', required: true, long: true, multi: true },
+      { id: 'expectations', label: 'Expectations for this campaign', required: true, long: true },
       { id: 'productLinks', label: 'Product/service page links', required: false, long: true },
       { id: 'website', label: 'Website address', required: true },
     ],
@@ -60,6 +62,7 @@ const SECTIONS = [
     title: 'Campaign Scope',
     fields: [
       { id: 'campaignDuration', label: 'How long do you plan to run this campaign', required: true, options: ['3 months (the bare minimum)', '6 months', '12 months', 'As long as we get good meetings', 'As long as we can afford it', 'Other'] },
+      { id: 'services', label: 'Services required (PROMOTE / NETWORK / ENGAGE)', required: true, multi: true, options: ['Social Content Creation (PROMOTE)', 'Social Selling (NETWORK)', 'Lead Generation Emailing (ENGAGE)'] },
     ],
   },
   {
@@ -83,7 +86,7 @@ const SECTIONS = [
     title: 'Social Networks (PROMOTE)',
     optional: true,
     fields: [
-      { id: 'top5Highlights', label: 'Top 5 things to highlight on social', required: true, long: true, multi: true },
+      { id: 'top5Highlights', label: 'Top 5 things to highlight on social', required: true, long: true },
       { id: 'otherContent', label: 'Other content to include', required: false, long: true },
       { id: 'dontWantContent', label: 'Content you do NOT want', required: true, long: true },
       { id: 'twitterHashtags', label: 'Twitter hashtags to focus on', required: false },
@@ -130,15 +133,6 @@ const SECTIONS = [
     ],
   },
 ];
-
-// Total question count across every section — used for the "Q[N]/TOTAL" badge in chat
-const TOTAL_QUESTIONS = SECTIONS.reduce((sum, s) => sum + s.fields.length, 0);
-
-// Flat field index (1-based) → field definition. Used to look up multi-select status from a Q[N] reference.
-const FLAT_FIELDS: any[] = SECTIONS.flatMap(s => s.fields);
-function fieldForQuestionNumber(n: number) {
-  return FLAT_FIELDS[n - 1] || null;
-}
 
 // Acknowledgments required before signature
 const ACKNOWLEDGMENTS = [
@@ -247,6 +241,10 @@ export default function GershonOnboarding() {
   const [error, setError] = useState(null);
   const [researchSource, setResearchSource] = useState(null); // { url, summary, searchedAt }
   const [researchStatus, setResearchStatus] = useState('');
+  // sessionId is set in useEffect on first client mount, NOT in useState initializer.
+  // Reason: window.history.replaceState() during render is a forbidden side effect that
+  // triggers React error #329 ("Unknown root exit status") — concurrent React aborts
+  // hydration, leaving the page as static HTML with no event handlers attached.
   const [sessionId, setSessionId] = useState<string | null>(null);
   useEffect(() => {
     if (sessionId) return;
@@ -262,44 +260,6 @@ export default function GershonOnboarding() {
       setSessionId(newId);
     }
   }, [sessionId]);
-  // Save progress to localStorage on every responses change
-  useEffect(() => {
-    if (!sessionId || Object.keys(responses).length === 0) return;
-    try {
-      localStorage.setItem(`gershon_session_${sessionId}`, JSON.stringify({
-        responses, messages, currentSection, sectionsDone, researchSource, savedAt: new Date().toISOString()
-      }));
-    } catch (_) {}
-  }, [responses, messages, currentSection, sectionsDone]);
-
-  // Restore progress if session exists in localStorage
-  const [showResume, setShowResume] = useState<{savedAt: string} | null>(null);
-  useEffect(() => {
-    if (!sessionId) return;
-    try {
-      const saved = localStorage.getItem(`gershon_session_${sessionId}`);
-      if (!saved) return;
-      const parsed = JSON.parse(saved);
-      if (parsed.responses && Object.keys(parsed.responses).length > 0 && phase === 'url_intake') {
-        setShowResume({ savedAt: parsed.savedAt });
-        // Pre-load the data so it's ready if they resume
-        window.__gershonSaved = parsed;
-      }
-    } catch (_) {}
-  }, [sessionId]);
-
-  const resumeSession = () => {
-    const saved = (window as any).__gershonSaved;
-    if (!saved) return;
-    setResponses(saved.responses || {});
-    setMessages(saved.messages || []);
-    setCurrentSection(saved.currentSection || 'about_you');
-    setSectionsDone(saved.sectionsDone || {});
-    setResearchSource(saved.researchSource || null);
-    setShowResume(null);
-    setPhase('conversation');
-  };
-
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -319,82 +279,77 @@ export default function GershonOnboarding() {
     if (phase === 'conversation' && !isLoading) inputRef.current?.focus();
   }, [phase, isLoading]);
 
-  // Kick off the conversation (skip research path)
+  // Kick off the OLD conversation (only used when ?mode=chat is in the URL).
   const startConversation = async () => {
     setPhase('conversation');
-    // All clients get the full package — pre-capture this
-    setResponses(prev => ({ ...prev, services: ['Social Content Creation (PROMOTE)', 'Social Selling (NETWORK)', 'Lead Generation Emailing (ENGAGE)'] }));
     await callClaude([]);
   };
 
-  // Run upfront website research and pre-fill fields
-  const researchAndStart = async (url) => {
+  // "Skip research, fill manually" → go straight to the empty review form so the
+  // user can fill it in without research. This is the new manual-fill path.
+  const startManualReview = () => {
+    setSectionsDone({ about_you: true, business: true, campaign: true, target: true, promote: true, network: true, comments: true, timing: true });
+    setPhase('review');
+  };
+
+  // Allow `?mode=chat` to force the old conversational flow for power-users / debugging.
+  const forceChatMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mode') === 'chat';
+
+  // Run upfront website + LinkedIn research, pre-fill fields, jump STRAIGHT to review.
+  // The old conversational phase is bypassed: the user reviews/edits the pre-filled
+  // form once and signs. Conversation mode is still reachable via /?mode=chat for
+  // manual fallback if the user wants it.
+  const researchAndStart = async (url, linkedInUrl) => {
     setPhase('researching');
     setError(null);
 
     try {
       setResearchStatus(`Visiting ${new URL(url.startsWith('http') ? url : 'https://' + url).hostname}…`);
 
-      const researchPrompt = `A new client is starting the Gershon Consulting onboarding for a US lead-generation campaign. Their website is: ${url}
-
-Use web_search to research this company. Pull their homepage content, any "About" / "Products" / "Pricing" / "Customers" pages you can, their LinkedIn company page, recent news. Then return a single JSON object with what you learned — ONLY fields you're confident about based on the site. If a field is a guess or you can't find it, leave it out.
-
-Return this JSON schema (omit any field you can't fill with reasonable confidence):
-
-{
-  "summary": "2-3 sentence description of what this company does, for internal reference",
-  "capture": {
-    "companyName": "…",
-    "website": "…",
-    "businessType": "B2B | B2C | B2B2C | marketplace | agency | etc",
-    "industry": "specific sub-industry, e.g. 'B2B SaaS — HR tech' not just 'software'",
-    "productLinks": "URLs to main product/service pages, comma-separated",
-    "targetDefinition": "best-guess description of their ideal customer profile based on site copy (testimonials, case studies, who they pitch to)",
-    "targetIndustries": "likely target industries for US outreach",
-    "targetTitles": "likely target buyer personas / job titles",
-    "top5Highlights": "5 differentiators worth highlighting on social, drawn from their site copy — newline-separated",
-    "googleKeywords": "likely Google keywords their category ranks for — comma-separated",
-    "competitors": "3-5 known competitors with website + one line on why each is a competitor",
-    "competitorTwitterAccounts": "Twitter handles of competitors if you can find them, comma-separated"
-  }
-}
-
-Return ONLY the JSON object. No markdown fences. No preamble. No commentary after.`;
-
-      setResearchStatus('Analyzing company website and positioning…');
-
       const res = await fetch('/api/research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, linkedInUrl: linkedInUrl || undefined }),
       });
+
+      setResearchStatus(linkedInUrl ? 'Reading your LinkedIn profile…' : 'Analyzing company website and positioning…');
       const parsed = await res.json();
 
-      setResearchStatus('Drafting your onboarding…');
+      setResearchStatus('Pre-filling your intake form…');
 
-      const capture = parsed.capture || {};
-      setResponses(prev => ({ ...prev, services: ['Social Content Creation (PROMOTE)', 'Social Selling (NETWORK)', 'Lead Generation Emailing (ENGAGE)'], ...capture, website: capture.website || url }));
+      // Strip empty strings from the capture so the review UI can show
+      // "needs your input" vs "✓ pre-filled" accurately.
+      const rawCapture = parsed.capture || {};
+      const capture: Record<string, string> = {};
+      for (const [k, v] of Object.entries(rawCapture)) {
+        if (typeof v === 'string' && v.trim() !== '') capture[k] = v.trim();
+        else if (Array.isArray(v) && v.length > 0) capture[k] = (v as any[]).join(', ');
+      }
+      if (!capture.website) capture.website = url;
+      if (linkedInUrl && !capture.personalLinkedIn) capture.personalLinkedIn = linkedInUrl;
+
+      setResponses(prev => ({ ...prev, ...capture }));
       setResearchSource({
         url,
+        linkedInUrl: linkedInUrl || null,
         summary: parsed.summary || '',
         searchedAt: new Date().toISOString(),
         capturedFields: Object.keys(capture),
       });
 
-      // All clients get the full package — pre-capture this
-      const fullCapture = { services: ['Social Content Creation (PROMOTE)', 'Social Selling (NETWORK)', 'Lead Generation Emailing (ENGAGE)'], ...capture, website: capture.website || url };
-      // Hand off to conversation — the assistant will see the pre-fills and confirm them
-      setPhase('conversation');
-      await callClaudeWithContext([], { ...responses, ...fullCapture }, sectionsDone, {
-        url,
-        summary: parsed.summary || '',
-        searchedAt: new Date().toISOString(),
-        capturedFields: Object.keys(capture),
-      });
+      // Mark every section as "done" optimistically — the review screen will surface
+      // any required fields that are still blank so the user can't sign incomplete.
+      setSectionsDone({ about_you: true, business: true, campaign: true, target: true, promote: true, network: true, comments: true, timing: true });
+
+      // Skip conversation entirely.
+      setPhase('review');
     } catch (e) {
       console.error(e);
-      setError('We couldn\'t complete the research. You can still continue manually.');
-      setPhase('url_intake');
+      setError("We couldn't complete the research. You can still fill out the form manually.");
+      // Even on research failure, drop the user into the review screen with a blank form.
+      if (url) setResponses(prev => ({ ...prev, website: url }));
+      if (linkedInUrl) setResponses(prev => ({ ...prev, personalLinkedIn: linkedInUrl }));
+      setPhase('review');
     }
   };
 
@@ -422,7 +377,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
       if (parsed.sectionComplete && parsed.currentSection) {
         setSectionsDone(prev => ({ ...prev, [parsed.currentSection]: true }));
       }
-      setMessages(prev => [...prev, { role: 'assistant', content: parsed.message, ts: Date.now() }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: parsed.message, options: Array.isArray(parsed.options) ? parsed.options : [], ts: Date.now() }]);
       if (parsed.readyForReview) setTimeout(() => setPhase('review'), 1200);
     } catch (e) {
       console.error(e);
@@ -464,7 +419,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
         setSectionsDone(prev => ({ ...prev, [parsed.currentSection]: true }));
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: parsed.message, ts: Date.now() }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: parsed.message, options: Array.isArray(parsed.options) ? parsed.options : [], ts: Date.now() }]);
 
       if (parsed.readyForReview) {
         setTimeout(() => setPhase('review'), 1200);
@@ -475,6 +430,21 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Send an option (button-click answer) as the user's next reply. Bypasses the input box.
+  const sendOption = async (option) => {
+    if (isLoading) return;
+    const userMsg = { role: 'user', content: option, ts: Date.now() };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    const history = newMessages.map(m => ({
+      role: m.role,
+      content: m.role === 'assistant'
+        ? JSON.stringify({ message: m.content, options: m.options || [], capture: {}, currentSection, sectionComplete: false, readyForReview: false })
+        : m.content,
+    }));
+    await callClaude(history);
   };
 
   const sendMessage = async () => {
@@ -494,19 +464,52 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
     await callClaude(history);
   };
 
-  const sendOptionMessage = async (text: string) => {
-    if (!text.trim() || isLoading) return;
-    const userMsg = { role: 'user', content: text.trim(), ts: Date.now() };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setInput('');
-    const history = newMessages.map(m => ({
-      role: m.role,
-      content: m.role === 'assistant'
-        ? JSON.stringify({ message: m.content, capture: {}, currentSection, sectionComplete: false, readyForReview: false })
-        : m.content,
-    }));
-    await callClaude(history);
+  // Quote file upload — when the user is in the Timing & Quote section, they can attach
+  // their validated quote PDF. We upload to Supabase Storage (via /api/upload) and then
+  // send the resulting reference as a user message so the AI captures it as quoteReference.
+  const [uploadingFile, setUploadingFile] = useState<string | null>(null);
+  const uploadQuoteFile = async (file: File) => {
+    if (!file || isLoading) return;
+    setUploadingFile(file.name);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      if (sessionId) fd.append('sessionId', sessionId);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Upload failed');
+      }
+      // Send a synthesized user message so the AI sees the file as the quote answer.
+      const captureValue = `Uploaded quote: ${data.filename} — ${data.url}`;
+
+      if (phase === 'review' || phase === 'url_intake') {
+        // Form-fill flow: just set the response directly. No conversation involved.
+        setResponses(prev => ({ ...prev, quoteReference: captureValue }));
+      } else {
+        // Legacy chat flow: send as a user message so the AI captures it.
+        const userMsg = {
+          role: 'user' as const,
+          content: captureValue,
+          ts: Date.now(),
+        };
+        const newMessages = [...messages, userMsg];
+        setMessages(newMessages);
+        const history = newMessages.map(m => ({
+          role: m.role,
+          content: m.role === 'assistant'
+            ? JSON.stringify({ message: m.content, capture: {}, currentSection, sectionComplete: false, readyForReview: false })
+            : m.content,
+        }));
+        await callClaude(history);
+      }
+    } catch (e: any) {
+      console.error('Upload error', e);
+      setError(e?.message || 'Could not upload your file. You can also type the quote reference (e.g. QU0011) instead.');
+    } finally {
+      setUploadingFile(null);
+    }
   };
 
   const handleKey = (e) => {
@@ -519,12 +522,15 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
   const jumpToReview = () => setPhase('review');
 
   const allAcknowledged = ACKNOWLEDGMENTS.every(a => acknowledgments[a.id]);
-  // HARD GATE: quoteReference is mandatory. The onboarding cannot be signed and
-  // submitted without a quote reference from Gershon Consulting — there is no
-  // valid contractual basis without it. If the client doesn't have one, they
-  // must email form@gershonconsulting.com BEFORE signing.
-  const hasQuoteReference = typeof responses.quoteReference === 'string' && responses.quoteReference.trim().length >= 3;
-  const canSign = allAcknowledged && termsAccepted && signatureName.trim().length >= 2 && signatureDate && hasQuoteReference;
+  // Compute whether all REQUIRED schema fields have a non-empty value. Sign is
+  // blocked until they're all filled — the review screen shows which are missing.
+  const allRequiredFieldsFilled = SECTIONS.every(s =>
+    s.fields.filter(f => f.required).every(f => {
+      const v = responses[f.id];
+      return v !== undefined && v !== null && String(v).trim() !== '';
+    })
+  );
+  const canSign = allAcknowledged && termsAccepted && signatureName.trim().length >= 2 && signatureDate && allRequiredFieldsFilled;
 
   const sign = async () => {
     if (!canSign) return;
@@ -565,6 +571,144 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
     a.download = `gershon-onboarding-${(responses.companyName || 'client').replace(/\s+/g, '-').toLowerCase()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Beautiful printable PDF — opens a styled summary in a new tab and triggers print dialog.
+  // Browser "Save as PDF" gives the user a brand-aligned PDF without a heavy client-side lib.
+  const exportPDF = () => {
+    const escape = (s: any) =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const companyName = responses.companyName || 'Client';
+    const dateLabel = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const sectionsHtml = SECTIONS.map(section => {
+      const sectionFields = section.fields.filter(f => responses[f.id] !== undefined && responses[f.id] !== '');
+      if (sectionFields.length === 0) return '';
+      const rows = sectionFields.map(f => {
+        const value = responses[f.id];
+        const display = Array.isArray(value) ? value.join(', ') : String(value);
+        return `<tr>
+            <td class="lbl">${escape(f.label)}</td>
+            <td class="val">${escape(display).replace(/\n/g, '<br/>')}</td>
+          </tr>`;
+      }).join('');
+      return `<section class="sec">
+        <div class="sec-head">
+          <span class="sec-num">${section.number}</span>
+          <span class="sec-title">${escape(section.title)}</span>
+        </div>
+        <table class="kv"><tbody>${rows}</tbody></table>
+      </section>`;
+    }).join('');
+
+    const ackHtml = ACKNOWLEDGMENTS.map(a => `
+      <li class="${acknowledgments[a.id] ? 'ack-yes' : 'ack-no'}">
+        <span class="ack-mark">${acknowledgments[a.id] ? '✓' : '·'}</span>
+        ${escape(a.text)}
+      </li>`).join('');
+
+    const html = `<!doctype html>
+<html><head><meta charset="utf-8" />
+<title>Gershon Onboarding · ${escape(companyName)}</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; margin: 0; padding: 32px; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .head { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 3px solid #CC3333; padding-bottom: 16px; margin-bottom: 24px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark { width: 36px; height: 36px; background: #CC3333; color: #fff; font-weight: 700; font-style: italic; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .brand-name { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #8A857E; font-family: 'SF Mono', Menlo, monospace; }
+  .brand-title { font-size: 19px; font-weight: 500; color: #1A1A1A; margin-top: 2px; }
+  .meta { text-align: right; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #8A857E; font-family: 'SF Mono', Menlo, monospace; line-height: 1.7; }
+  .meta strong { color: #1A1A1A; font-weight: 500; }
+  h1 { font-size: 32px; font-weight: 400; margin: 0 0 4px; letter-spacing: -0.02em; }
+  h1 em { color: #CC3333; }
+  .lead { font-size: 12px; color: #555; margin: 8px 0 28px; }
+  .sec { margin-bottom: 22px; page-break-inside: avoid; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1.5px solid #CC3333; padding-bottom: 6px; margin-bottom: 10px; }
+  .sec-num { font-family: 'SF Mono', Menlo, monospace; font-size: 10px; letter-spacing: 0.2em; color: #CC3333; }
+  .sec-title { font-size: 17px; font-weight: 500; }
+  table.kv { width: 100%; border-collapse: collapse; }
+  table.kv td { padding: 7px 0; border-bottom: 1px solid #EEEAE3; vertical-align: top; font-size: 11.5px; line-height: 1.5; }
+  table.kv td.lbl { width: 38%; font-family: 'SF Mono', Menlo, monospace; font-size: 9.5px; color: #8A857E; letterspacing: 0.06em; text-transform: uppercase; padding-right: 16px; padding-top: 9px; }
+  table.kv td.val { color: #1A1A1A; }
+  .ack { margin-top: 26px; padding: 18px 22px; border: 1px solid #CC3333; background: #FAF8F5; page-break-inside: avoid; }
+  .ack h2 { font-size: 14px; margin: 0 0 12px; font-weight: 600; letter-spacing: 0.04em; }
+  .ack ul { list-style: none; padding: 0; margin: 0; }
+  .ack li { padding: 6px 0; font-size: 11.5px; line-height: 1.5; display: flex; gap: 10px; align-items: flex-start; }
+  .ack-mark { display: inline-block; width: 16px; height: 16px; border-radius: 2px; background: #CC3333; color: #fff; font-size: 11px; text-align: center; line-height: 16px; flex-shrink: 0; }
+  .ack-no .ack-mark { background: #DDD; color: #999; }
+  .sig { margin-top: 24px; padding: 22px 24px; background: #1A1A1A; color: #fff; page-break-inside: avoid; }
+  .sig-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: end; }
+  .sig-label { font-family: 'SF Mono', Menlo, monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: #999; margin-bottom: 6px; }
+  .sig-name { font-style: italic; font-size: 26px; border-bottom: 2px solid #CC3333; padding-bottom: 4px; }
+  .sig-date { font-family: 'SF Mono', Menlo, monospace; font-size: 14px; border-bottom: 2px solid #CC3333; padding-bottom: 6px; }
+  .sig-foot { margin-top: 16px; font-family: 'SF Mono', Menlo, monospace; font-size: 9px; letter-spacing: 0.1em; color: #999; text-transform: uppercase; }
+  .foot { margin-top: 28px; padding-top: 14px; border-top: 1px solid #EEEAE3; font-family: 'SF Mono', Menlo, monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: #8A857E; text-align: center; }
+  .print-bar { position: fixed; top: 12px; right: 12px; background: #CC3333; color: #fff; padding: 10px 18px; font-family: Inter, sans-serif; font-size: 13px; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  @media print { .print-bar { display: none; } body { padding: 0; } }
+</style>
+</head>
+<body>
+  <button class="print-bar" onclick="window.print()">Save as PDF · Print</button>
+  <div class="head">
+    <div class="brand">
+      <div class="brand-mark"><span style="font-family:Georgia,serif">G</span></div>
+      <div>
+        <div class="brand-name">Gershon Consulting</div>
+        <div class="brand-title">Client Onboarding Intake</div>
+      </div>
+    </div>
+    <div class="meta">
+      <div>Generated · <strong>${escape(dateLabel)}</strong></div>
+      <div>Company · <strong>${escape(companyName)}</strong></div>
+      <div>Status · <strong>${termsAccepted ? 'Signed &amp; Binding' : 'Draft'}</strong></div>
+    </div>
+  </div>
+
+  <h1>Onboarding summary for <em>${escape(companyName)}</em></h1>
+  <p class="lead">All answers captured during the conversational intake on form.gershoncrm.com. This document is the authoritative reference for the campaign launch.</p>
+
+  ${sectionsHtml}
+
+  <div class="ack">
+    <h2>Section 09 · Understandings &amp; Acknowledgments</h2>
+    <ul>${ackHtml}</ul>
+  </div>
+
+  <div class="sig">
+    <div style="font-family:'SF Mono',Menlo,monospace; font-size:10px; letter-spacing:0.2em; color:#CC3333; text-transform:uppercase;">— Section 10 · Signature</div>
+    <div style="font-size:18px; margin: 6px 0 18px; font-weight: 500;">Terms of Service Accepted: ${termsAccepted ? 'Yes' : 'No'}</div>
+    <div class="sig-grid">
+      <div>
+        <div class="sig-label">Signed by</div>
+        <div class="sig-name">${escape(signatureName)}</div>
+      </div>
+      <div>
+        <div class="sig-label">Date</div>
+        <div class="sig-date">${escape(signatureDate)}</div>
+      </div>
+    </div>
+    <div class="sig-foot">By signing, this intake is binding on the project.</div>
+  </div>
+
+  <div class="foot">Gershon Consulting LLC · Delaware · Est. 2013 · form.gershoncrm.com</div>
+
+  <script>setTimeout(function(){ window.print(); }, 350);</script>
+</body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert('Please allow popups to download the PDF.');
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
   };
 
   // ========================================================================
@@ -613,8 +757,8 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
       <header style={{ borderBottom: `1px solid ${BRAND.rule}`, background: BRAND.paper, position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 1280, margin: '0 auto', padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <GershonLogo size={36} />
+            <div style={{ width: 32, height: 32, background: BRAND.red, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span className="serif" style={{ color: 'white', fontSize: 18, fontWeight: 600, fontStyle: 'italic' }}>G</span>
             </div>
             <div>
               <div className="mono" style={{ fontSize: 10, color: BRAND.muted, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Gershon Consulting</div>
@@ -624,14 +768,14 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Lock size={12} color={BRAND.muted} />
             <span className="mono" style={{ fontSize: 10, color: BRAND.muted, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Secured · Binding</span>
-            <span className="mono" style={{ fontSize: 11, color: BRAND.red, letterSpacing: '0.12em', marginLeft: 14, paddingLeft: 14, borderLeft: `1px solid ${BRAND.rule}`, fontWeight: 600 }} title={`Full build timestamp: ${BUILD_TIME}`}>{BUILD_LABEL}</span>
+            <span className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.1em', marginLeft: 12, paddingLeft: 12, borderLeft: `1px solid ${BRAND.rule}`, opacity: 0.7 }} title={`Build: ${BUILD_TIME}`}>{BUILD_LABEL}</span>
           </div>
         </div>
       </header>
 
       {/* ============ PHASE: URL INTAKE ============ */}
       {phase === 'url_intake' && (
-        <UrlIntakeScreen onAnalyze={researchAndStart} onSkip={startConversation} error={error} showResume={showResume} onResume={resumeSession} />
+        <UrlIntakeScreen onAnalyze={researchAndStart} onSkip={forceChatMode ? startConversation : startManualReview} error={error} />
       )}
 
       {/* ============ PHASE: RESEARCHING ============ */}
@@ -646,7 +790,7 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
           input={input}
           setInput={setInput}
           sendMessage={sendMessage}
-          sendOptionMessage={sendOptionMessage}
+          sendOption={sendOption}
           handleKey={handleKey}
           isLoading={isLoading}
           error={error}
@@ -657,6 +801,8 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
           messagesEndRef={messagesEndRef}
           jumpToReview={jumpToReview}
           researchSource={researchSource}
+          uploadQuoteFile={uploadQuoteFile}
+          uploadingFile={uploadingFile}
         />
       )}
 
@@ -678,15 +824,17 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
           signatureDate={signatureDate}
           setSignatureDate={setSignatureDate}
           canSign={canSign}
-          hasQuoteReference={hasQuoteReference}
           sign={sign}
-          backToChat={() => setPhase('conversation')}
+          researchSource={researchSource}
+          uploadQuoteFile={uploadQuoteFile}
+          uploadingFile={uploadingFile}
+          backToChat={() => setPhase('url_intake')}
         />
       )}
 
       {/* ============ PHASE: SIGNED ============ */}
       {phase === 'signed' && (
-        <SignedScreen responses={responses} signatureName={signatureName} signatureDate={signatureDate} exportJSON={exportJSON} />
+        <SignedScreen responses={responses} signatureName={signatureName} signatureDate={signatureDate} exportJSON={exportJSON} exportPDF={exportPDF} />
       )}
     </div>
   );
@@ -696,8 +844,9 @@ Return ONLY the JSON object. No markdown fences. No preamble. No commentary afte
 // URL Intake Screen — first step, gathers website for research
 // ============================================================================
 
-function UrlIntakeScreen({ onAnalyze, onSkip, error, showResume, onResume }) {
+function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
   const [url, setUrl] = useState('');
+  const [linkedInUrl, setLinkedInUrl] = useState('');
   const [touched, setTouched] = useState(false);
 
   const normalizedUrl = url.trim();
@@ -710,44 +859,39 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error, showResume, onResume }) {
     } catch (_e) { return false; }
   })();
 
+  const normalizedLinkedIn = linkedInUrl.trim();
+  const linkedInValid = (() => {
+    if (!normalizedLinkedIn) return true; // optional
+    const t = normalizedLinkedIn.toLowerCase();
+    return t.includes('linkedin.com/in/') || t.includes('linkedin.com/pub/');
+  })();
+
   const handleAnalyze = () => {
     setTouched(true);
-    if (!isValid) return;
+    if (!isValid || !linkedInValid) return;
     const finalUrl = normalizedUrl.startsWith('http') ? normalizedUrl : 'https://' + normalizedUrl;
-    onAnalyze(finalUrl);
+    const finalLi = normalizedLinkedIn
+      ? (normalizedLinkedIn.startsWith('http') ? normalizedLinkedIn : 'https://' + normalizedLinkedIn)
+      : '';
+    onAnalyze(finalUrl, finalLi);
   };
 
   return (
     <div className="fade-in" style={{ maxWidth: 1280, margin: '0 auto', padding: '72px 32px' }}>
       <div style={{ maxWidth: 720 }}>
         <div className="mono" style={{ fontSize: 11, color: BRAND.red, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 28 }}>
-          — Onboarding Intake · Est. 10–15 min
+          — Onboarding Intake · ~3 min
         </div>
-        {showResume && (
-          <div style={{ marginBottom: 32, padding: '16px 20px', background: BRAND.paper, border: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
-            <div>
-              <div className="mono" style={{ fontSize: 10, color: BRAND.red, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 4 }}>
-                Saved session found
-              </div>
-              <div style={{ fontSize: 13, color: BRAND.charcoalLight }}>
-                You have an incomplete intake saved from {new Date(showResume.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}. Pick up where you left off?
-              </div>
-            </div>
-            <button className="btn-primary" onClick={onResume} style={{ whiteSpace: 'nowrap', padding: '10px 20px', fontSize: 13 }}>
-              Resume →
-            </button>
-          </div>
-        )}
         <h1 className="serif" style={{ fontSize: 56, lineHeight: 1.05, fontWeight: 400, color: BRAND.ink, margin: 0, letterSpacing: '-0.02em' }}>
-          Let's start with <span style={{ fontStyle: 'italic', color: BRAND.red }}>your website.</span>
+          We do the homework. <span style={{ fontStyle: 'italic', color: BRAND.red }}>You just review.</span>
         </h1>
         <p style={{ fontSize: 17, lineHeight: 1.6, color: BRAND.charcoalLight, marginTop: 28 }}>
-          Paste your URL and we'll do the homework first — reading your homepage, product pages, and positioning before the intake starts. You'll spend the conversation confirming and refining what we found, not typing from scratch.
+          Drop your company URL (and optionally your LinkedIn profile). We'll research your business, your positioning, and your likely target market — then hand you a fully pre-filled intake. Edit anything that's off, sign at the bottom, done.
         </p>
 
         <div style={{ marginTop: 40 }}>
           <label className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>
-            Your company website
+            Your company website <span style={{ color: BRAND.red }}>*</span>
           </label>
           <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${touched && !isValid ? BRAND.red : BRAND.rule}`, background: BRAND.paper, transition: 'border 0.15s' }}>
             <span className="mono" style={{ padding: '16px 14px 16px 18px', fontSize: 13, color: BRAND.muted, borderRight: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center' }}>
@@ -779,20 +923,56 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error, showResume, onResume }) {
           )}
         </div>
 
+        <div style={{ marginTop: 24 }}>
+          <label className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>
+            Your LinkedIn profile <span style={{ color: BRAND.muted, fontWeight: 400 }}>(optional, big quality boost)</span>
+          </label>
+          <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${touched && !linkedInValid ? BRAND.red : BRAND.rule}`, background: BRAND.paper, transition: 'border 0.15s' }}>
+            <span className="mono" style={{ padding: '16px 14px 16px 18px', fontSize: 13, color: BRAND.muted, borderRight: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center' }}>
+              linkedin.com/in/
+            </span>
+            <input
+              type="text"
+              value={linkedInUrl.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, '')}
+              onChange={(e) => {
+                const raw = e.target.value;
+                setLinkedInUrl(raw.includes('linkedin.com/in/') ? raw : `linkedin.com/in/${raw}`);
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+              placeholder="your-handle"
+              className="sans"
+              style={{
+                flex: 1,
+                border: 'none',
+                padding: '16px 18px',
+                fontSize: 17,
+                fontFamily: 'Inter, sans-serif',
+                color: BRAND.ink,
+                background: 'transparent',
+              }}
+            />
+          </div>
+          {touched && !linkedInValid && (
+            <div className="mono" style={{ fontSize: 11, color: BRAND.red, marginTop: 8, letterSpacing: '0.05em' }}>
+              Use a linkedin.com/in/ profile URL or leave blank.
+            </div>
+          )}
+        </div>
+
         <div style={{ marginTop: 32, display: 'flex', alignItems: 'center', gap: 20 }}>
           <button
             className="btn-primary"
             onClick={handleAnalyze}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '14px 28px', fontSize: 14 }}
           >
-            Analyze &amp; begin intake <ArrowRight size={16} />
+            Pre-fill my intake <ArrowRight size={16} />
           </button>
           <button
             onClick={onSkip}
             className="mono"
             style={{ background: 'none', border: 'none', color: BRAND.muted, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 4 }}
           >
-            No website — start manually
+            Skip research, fill manually
           </button>
         </div>
 
@@ -896,23 +1076,16 @@ function ResearchingScreen({ status }) {
 // Conversation View
 // ============================================================================
 
-function ConversationView({ messages, input, setInput, sendMessage, sendOptionMessage, handleKey, sessionId = null, isLoading, error, currentSection, sectionsDone, responses, inputRef, messagesEndRef, jumpToReview, researchSource }) {
+function ConversationView({ messages, input, setInput, sendMessage, sendOption, handleKey, isLoading, error, currentSection, sectionsDone, responses, inputRef, messagesEndRef, jumpToReview, researchSource, uploadQuoteFile, uploadingFile }) {
+  const showQuoteUpload = currentSection === 'timing' && !responses.quoteReference;
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const currentSectionObj = SECTIONS.find(s => s.id === currentSection) || SECTIONS[0];
   const totalSections = SECTIONS.length;
   const completedCount = Object.values(sectionsDone).filter(Boolean).length;
-  // Field-level progress: count captured non-empty responses out of all fields.
-  // This advances after every answered question, not only at section boundaries.
-  const capturedFieldCount = Object.keys(responses).filter(k => {
-    const v = (responses as any)[k];
-    if (v == null) return false;
-    if (typeof v === 'string') return v.trim() !== '';
-    if (Array.isArray(v)) return v.length > 0;
-    return true;
-  }).length;
-  const progressPct = Math.min(100, Math.round((capturedFieldCount / TOTAL_QUESTIONS) * 100));
+  const progressPct = Math.round((completedCount / totalSections) * 100);
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '20px 24px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px 260px', gap: 20, minHeight: 'calc(100vh - 72px)' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px', display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32, minHeight: 'calc(100vh - 72px)' }}>
 
       {/* CHAT COLUMN */}
       <div style={{ display: 'flex', flexDirection: 'column', background: BRAND.paper, border: `1px solid ${BRAND.rule}`, minHeight: 0 }}>
@@ -939,7 +1112,7 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOptionMe
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.15em' }}>
-              {capturedFieldCount} OF {TOTAL_QUESTIONS} ANSWERED · {progressPct}%
+              {completedCount} OF {totalSections} DONE · {progressPct}%
             </div>
             <div style={{ marginTop: 8, width: 140, height: 2, background: BRAND.rule, position: 'relative' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${progressPct}%`, background: BRAND.red, transition: 'width 0.3s' }} />
@@ -949,19 +1122,47 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOptionMe
 
         {/* Messages */}
         <div className="scroll-area" style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {messages.map((m, i) => (
-            <MessageBubble
-              key={i}
-              role={m.role}
-              content={m.content}
-              isLast={i === messages.length - 1}
-              onOptionClick={!isLoading ? sendOptionMessage : null}
-            />
-          ))}
+          {messages.map((m, i) => {
+            const isLastAssistant = m.role === 'assistant' && i === messages.length - 1 && !isLoading;
+            return (
+              <div key={i}>
+                <MessageBubble role={m.role} content={m.content} />
+                {isLastAssistant && Array.isArray(m.options) && m.options.length > 0 && (
+                  <div style={{ marginTop: 12, marginLeft: 44, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {m.options.map((opt, j) => (
+                      <button
+                        key={j}
+                        onClick={() => sendOption(opt)}
+                        disabled={isLoading}
+                        style={{
+                          background: BRAND.paper,
+                          color: BRAND.ink,
+                          border: `1px solid ${BRAND.rule}`,
+                          padding: '10px 16px',
+                          fontSize: 13.5,
+                          lineHeight: 1.4,
+                          cursor: 'pointer',
+                          fontFamily: 'Inter, sans-serif',
+                          textAlign: 'left',
+                          maxWidth: 480,
+                          transition: 'all 0.15s',
+                          borderRadius: 0,
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = BRAND.cream; e.currentTarget.style.borderColor = BRAND.red; e.currentTarget.style.color = BRAND.red; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = BRAND.paper; e.currentTarget.style.borderColor = BRAND.rule; e.currentTarget.style.color = BRAND.ink; }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {isLoading && (
             <div className="msg-in" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <Avatar />
-              <div style={{ background: BRAND.cream, padding: '14px 18px', maxWidth: '85%' }}>
+              <div style={{ background: BRAND.cream, padding: '14px 18px', maxWidth: '75%' }}>
                 <span className="dot"></span><span className="dot" style={{ marginLeft: 4 }}></span><span className="dot" style={{ marginLeft: 4 }}></span>
               </div>
             </div>
@@ -1010,378 +1211,93 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOptionMe
             </button>
           </div>
           <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em' }}>
-              ENTER TO SEND · SHIFT+ENTER FOR NEW LINE
-            </span>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <SaveProgressButton responses={responses} messages={messages} currentSection={currentSection} sectionsDone={sectionsDone} researchSource={researchSource} />
-              {Object.keys(responses).length >= 4 && (
-                <button onClick={jumpToReview} className="mono" style={{ fontSize: 10, color: BRAND.red, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  Skip to review →
-                </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em' }}>
+                ENTER TO SEND · SHIFT+ENTER FOR NEW LINE
+              </span>
+              {showQuoteUpload && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.docx,.doc,.xlsx,.xls,.txt"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadQuoteFile(f);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={!!uploadingFile || isLoading}
+                    className="mono"
+                    style={{
+                      fontSize: 10,
+                      color: uploadingFile ? BRAND.muted : BRAND.red,
+                      background: 'none',
+                      border: `1px solid ${BRAND.red}`,
+                      padding: '4px 10px',
+                      cursor: uploadingFile ? 'wait' : 'pointer',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                    title="Attach your validated quote (PDF, image, DOCX, up to 15 MB)"
+                  >
+                    {uploadingFile ? (
+                      <><span className="dot"></span> Uploading {uploadingFile.slice(0, 18)}{uploadingFile.length > 18 ? '…' : ''}</>
+                    ) : (
+                      <><Paperclip size={11} /> Attach quote file</>
+                    )}
+                  </button>
+                </>
               )}
             </div>
+            {Object.keys(responses).length >= 4 && (
+              <button onClick={jumpToReview} className="mono" style={{ fontSize: 10, color: BRAND.red, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                Skip to review →
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* SIDEBAR */}
-      <ProgressPanel currentSection={currentSection} sectionsDone={sectionsDone} responses={responses} />
-      <CapturedPanel responses={responses} />
+      <Sidebar currentSection={currentSection} sectionsDone={sectionsDone} responses={responses} />
     </div>
   );
 }
 
-
-// ============================================================================
-// Option parsing — detect choices in AI messages and render as buttons
-// ============================================================================
-
-function parseOptions(text: string): string[] | null {
-  // Pattern 1: "Your options are: A, B, C, or D"
-  const optMatch = text.match(/(?:options are|choices are|your options)[:\s]+([^?!\n]{10,}[?!]?)\s*$/im);
-  if (optMatch) {
-    const raw = optMatch[1].replace(/[?!]$/, '').trim();
-    const parts = raw
-      .split(/,\s*/)
-      .map(s => s.replace(/^(?:or|and)\s+/i, '').trim())
-      .filter(s => s.length > 0 && s.length < 100);
-    if (parts.length >= 2 && parts.length <= 8) return parts;
-  }
-
-  // Pattern 2: Numbered list (1. ..., 2. ...)
-  const lines = text.split('\n');
-  const numbered = lines.filter(l => /^\s*\d+\.\s+\S/.test(l));
-  if (numbered.length >= 2 && numbered.length <= 8) {
-    return numbered.map(l => l.replace(/^\s*\d+\.\s+/, '').trim()).filter(Boolean);
-  }
-
-  // Pattern 3: Bullet list (-, •, ·, *)
-  const bulleted = lines.filter(l => /^\s*[-•·*]\s+\S/.test(l));
-  if (bulleted.length >= 2 && bulleted.length <= 8) {
-    return bulleted.map(l => l.replace(/^\s*[-•·*]\s+/, '').trim()).filter(Boolean);
-  }
-
-  // Pattern 4: Yes/No confirmation questions — broad detection
-  const yesNoTriggers = [
-    /does that (?:match|sound right|look right|seem right|ring true|work)\??/i,
-    /is that (?:correct|right|accurate|good)\??/i,
-    /(?:if so|if that(?:'s| is) right)/i,
-    /\bare you ([A-Z][a-z]+)/i,           // sentence-initial or mid-sentence "Are you X?"
-    /\bare (?:these|those) (?:the )?(?:correct|right|best|accurate|good)/i,
-    /\bis (?:this|that) (?:you|correct|right|accurate|the best|the right)/i,
-    /(?:confirm|confirming) (?:that|your|you)/i,
-    /does that (?:land|match|work) for you\??/i,
-    /\bcan you confirm\b/i,
-    /\bdo(?:es)? (?:this|that|these|those) sound\b/i,
-    /\bwould (?:that|this|these|those) be\b/i,
-    /\bshall we\b/i,
-    /\b(?:would|do) you (?:prefer|want to)/i,
-    /(?:correct|update|change), or/i,
-    /\bsound good\b/i,
-    /\bgot it\??/i,
-    /\bmake sense\??/i,
-  ];
-  if (yesNoTriggers.some(r => r.test(text))) {
-    return ['Yes, correct', 'No, let me correct that', 'Other'];
-  }
-
-  return null;
-}
-
-function MessageBubble({ role, content, onOptionClick = null, isLast = false }) {
+function MessageBubble({ role, content }) {
   const isAssistant = role === 'assistant';
   return (
     <div className="msg-in" style={{ display: 'flex', gap: 12, flexDirection: isAssistant ? 'row' : 'row-reverse', alignItems: 'flex-start' }}>
-      {isAssistant ? <Avatar questionNumber={(() => {
-        const m = content.match(/\*\*Q(\d+)\.\s/);
-        return m ? parseInt(m[1], 10) : null;
-      })()} /> : <UserAvatar />}
-      <div style={{ maxWidth: '88%' }}>
-        <div style={{
-          background: isAssistant ? BRAND.cream : BRAND.ink,
-          color: isAssistant ? BRAND.ink : 'white',
-          padding: '14px 18px',
-          fontSize: 14.5,
-          lineHeight: 1.55,
-          borderLeft: isAssistant ? `2px solid ${BRAND.red}` : 'none',
-        }}>
-          {(() => {
-            const parsedOpts = isAssistant && isLast && onOptionClick ? parseOptions(content) : null;
-            const lines = content.split('\n');
-            const optSet = new Set((parsedOpts || []).map(o => o.trim()));
-            const visibleLines = parsedOpts
-              ? lines.filter(l => {
-                  const t = l.trim();
-                  if (!t) return true;
-                  if (/^\s*\d+\.\s+/.test(l)) return false;
-                  if (/^\s*[-•·*]\s+/.test(l)) return false;
-                  if (optSet.has(t)) return false;
-                  return true;
-                })
-              : lines;
-            const stripCitations = (s) => s
-              .replace(/<cite[^>]*>([^<]*)<\/cite>/g, '$1')
-              .replace(/\[\d+(?:-\d+(?:,\d+(?:-\d+)?)*)?\]/g, '');
-            const urlRe = /(https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+)/g;
-            return visibleLines.map((line, i) => {
-              const cleaned = stripCitations(line);
-              const parts = cleaned.split(urlRe);
-              return (
-                <div key={i} style={{ marginTop: i > 0 ? 6 : 0 }}>
-                  {parts.map((p, j) => {
-                    if (p.match(/^https?:\/\//)) {
-                      return <a key={j} href={p} target="_blank" rel="noopener noreferrer" style={{ color: BRAND.red, textDecoration: 'underline', textUnderlineOffset: 2 }}>{p}</a>;
-                    }
-                    // Parse markdown **bold** segments
-                    const boldRe = /\*\*([^*]+?)\*\*/g;
-                    const segs = [];
-                    let last = 0; let m;
-                    while ((m = boldRe.exec(p)) !== null) {
-                      if (m.index > last) segs.push({ text: p.slice(last, m.index), bold: false });
-                      segs.push({ text: m[1], bold: true });
-                      last = m.index + m[0].length;
-                    }
-                    if (last < p.length) segs.push({ text: p.slice(last), bold: false });
-                    if (segs.length === 0) return <span key={j}>{p}</span>;
-                    return <span key={j}>{segs.map((s, k) => s.bold
-                      ? <strong key={k} className="serif" style={{ fontSize: '1.05em', color: BRAND.red, fontWeight: 600 }}>{s.text}</strong>
-                      : <span key={k}>{s.text}</span>
-                    )}</span>;
-                  })}
-                </div>
-              );
-            });
-          })()}
-        </div>
-        {isAssistant && isLast && onOptionClick && (() => {
-          const opts = parseOptions(content);
-          if (!opts) return null;
-          // Detect multi-select: parse the Q[N] header, look up the field, check `multi`
-          const qMatch = content.match(/\*\*Q(\d+)\.\s/);
-          const fieldDef = qMatch ? fieldForQuestionNumber(parseInt(qMatch[1], 10)) : null;
-          const isMulti = fieldDef && fieldDef.multi === true;
-          if (isMulti) {
-            return <MultiSelectOptions options={opts} onSubmit={onOptionClick} />;
-          }
-          return (
-            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {opts.map((opt, i) => (
-                <OptionButton key={i} label={opt} onClick={() => onOptionClick(opt)} />
-              ))}
-            </div>
-          );
-        })()}
+      {isAssistant ? <Avatar /> : <UserAvatar />}
+      <div style={{
+        background: isAssistant ? BRAND.cream : BRAND.ink,
+        color: isAssistant ? BRAND.ink : 'white',
+        padding: '14px 18px',
+        maxWidth: '78%',
+        fontSize: 14.5,
+        lineHeight: 1.55,
+        borderLeft: isAssistant ? `2px solid ${BRAND.red}` : 'none',
+      }}>
+        {content.split('\n').map((line, i) => (
+          <div key={i} style={{ marginTop: i > 0 ? 8 : 0 }}>{line}</div>
+        ))}
       </div>
     </div>
   );
 }
 
-
-function OptionButton({ label, onClick }: { label: string; onClick: () => void }) {
-  const [hovered, setHovered] = React.useState(false);
+function Avatar() {
   return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: hovered ? BRAND.red : 'transparent',
-        border: `1px solid ${BRAND.red}`,
-        color: hovered ? 'white' : BRAND.red,
-        padding: '7px 16px',
-        fontSize: 13,
-        cursor: 'pointer',
-        fontFamily: 'Inter, sans-serif',
-        fontWeight: 500,
-        letterSpacing: '0.01em',
-        transition: 'all 0.15s',
-        lineHeight: 1.4,
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-
-function MultiSelectOptions({ options, onSubmit }: { options: string[]; onSubmit: (text: string) => void }) {
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
-  // The last option is typically "Type a different answer" — treat as fallback escape (single-click)
-  const lastOpt = options[options.length - 1];
-  const isFallback = lastOpt && lastOpt.toLowerCase().includes('type a different');
-  const checkable = isFallback ? options.slice(0, -1) : options;
-
-  const toggle = (opt: string) => setSelected(prev => ({ ...prev, [opt]: !prev[opt] }));
-  const selectedList = checkable.filter(o => selected[o]);
-  const canSubmit = selectedList.length > 0;
-
-  return (
-    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
-        Select all that apply
-      </div>
-      {checkable.map((opt, i) => (
-        <label key={i} style={{
-          display: 'flex', alignItems: 'flex-start', gap: 10,
-          padding: '10px 14px',
-          border: `1px solid ${selected[opt] ? BRAND.red : BRAND.rule}`,
-          background: selected[opt] ? BRAND.redLight : BRAND.paper,
-          color: selected[opt] ? BRAND.redDark : BRAND.ink,
-          cursor: 'pointer',
-          fontFamily: 'Inter, sans-serif',
-          fontSize: 13.5,
-          lineHeight: 1.4,
-          transition: 'all 0.12s',
-        }}>
-          <input
-            type="checkbox"
-            checked={!!selected[opt]}
-            onChange={() => toggle(opt)}
-            style={{ marginTop: 3, accentColor: BRAND.red, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }}
-          />
-          <span>{opt}</span>
-        </label>
-      ))}
-      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-        <button
-          onClick={() => canSubmit && onSubmit(selectedList.join(' + '))}
-          disabled={!canSubmit}
-          className="btn-primary"
-          style={{
-            padding: '10px 18px', fontSize: 13.5,
-            background: canSubmit ? BRAND.red : '#CFC9C1',
-            color: 'white', border: 'none', cursor: canSubmit ? 'pointer' : 'not-allowed',
-            fontFamily: 'Inter, sans-serif',
-          }}
-        >
-          Submit selections{selectedList.length > 0 ? ` (${selectedList.length})` : ''}
-        </button>
-        {isFallback && (
-          <button onClick={() => onSubmit(lastOpt)} className="btn-ghost" style={{ padding: '10px 14px', fontSize: 13 }}>
-            {lastOpt}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SaveProgressButton({ responses, messages, currentSection, sectionsDone, researchSource }) {
-  const [status, setStatus] = React.useState<'idle' | 'saving' | 'saved-emailed' | 'saved-no-email' | 'error'>('idle');
-  const sessionId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('s') : null;
-  if (!sessionId || Object.keys(responses).length === 0) return null;
-
-  const handleSave = async () => {
-    setStatus('saving');
-    // Always save to localStorage so progress survives the tab session at minimum
-    try {
-      localStorage.setItem(`gershon_session_${sessionId}`, JSON.stringify({
-        responses, messages, currentSection, sectionsDone, researchSource, savedAt: new Date().toISOString()
-      }));
-    } catch (_) {}
-    // If we have the user's email, email them the resume link so they can come back from any device
-    const email = (responses?.email || '').toString().trim();
-    if (email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      try {
-        const resumeUrl = typeof window !== 'undefined' ? window.location.href : '';
-        const res = await fetch('/api/save-progress', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email,
-            firstName: responses?.firstName || '',
-            companyName: responses?.companyName || '',
-            resumeUrl,
-          }),
-        });
-        if (res.ok) {
-          setStatus('saved-emailed');
-        } else {
-          setStatus('saved-no-email');
-        }
-      } catch (_) {
-        setStatus('saved-no-email');
-      }
-    } else {
-      setStatus('saved-no-email');
-    }
-    setTimeout(() => setStatus('idle'), 5000);
-  };
-
-  const label =
-    status === 'saving' ? 'Saving…' :
-    status === 'saved-emailed' ? `✓ Saved — resume link emailed to ${responses?.email}` :
-    status === 'saved-no-email' ? '✓ Saved — bookmark this URL to resume' :
-    status === 'error' ? '✗ Save failed, try again' :
-    'Save progress';
-
-  return (
-    <button
-      onClick={handleSave}
-      disabled={status === 'saving'}
-      className="mono"
-      style={{
-        fontSize: 10,
-        color: status === 'idle' ? BRAND.muted : BRAND.red,
-        background: 'none',
-        border: 'none',
-        cursor: status === 'saving' ? 'wait' : 'pointer',
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        transition: 'color 0.2s',
-      }}
-      title={status === 'saved-no-email' && !responses?.email ? 'Provide your email earlier in the form to get a resume link emailed automatically' : ''}
-    >
-      {label}
-    </button>
-  );
-}
-
-// ============================================================================
-// Gershon AI logo — inline SVG (renders crisp at any size). Used in the
-// header tile (top-left) and the assistant avatar fallback for non-question
-// messages. The circular logomark mirrors gershon.ai: dark disc, red outer
-// ring, red Golden-Gate bridge silhouette, cyan AI nodes.
-// ============================================================================
-function GershonLogo({ size = 32 }: { size?: number }) {
-  const s = size;
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-label="Gershon AI" style={{ display: 'block' }}>
-      {/* dark disc */}
-      <circle cx="32" cy="32" r="30" fill="#1a1a1a" />
-      {/* red outer ring */}
-      <circle cx="32" cy="32" r="30" fill="none" stroke="#CC3333" strokeWidth="3" />
-      {/* bridge: two suspension towers + roadway + cables */}
-      <g stroke="#CC3333" fill="none" strokeLinecap="round">
-        {/* roadway */}
-        <line x1="14" y1="40" x2="50" y2="40" strokeWidth="2.2" />
-        {/* towers */}
-        <line x1="22" y1="40" x2="22" y2="22" strokeWidth="2.4" />
-        <line x1="42" y1="40" x2="42" y2="22" strokeWidth="2.4" />
-        {/* main suspension cables (catenary approximated) */}
-        <path d="M14 30 Q22 22 32 32 Q42 22 50 30" strokeWidth="1.6" />
-      </g>
-      {/* AI nodes — small cyan dots around the ring */}
-      <circle cx="14" cy="22" r="2" fill="#7CDDF5" />
-      <circle cx="50" cy="22" r="2" fill="#7CDDF5" />
-      <circle cx="32" cy="54" r="2" fill="#7CDDF5" />
-    </svg>
-  );
-}
-
-function Avatar({ questionNumber = null }: { questionNumber?: number | null }) {
-  if (questionNumber != null) {
-    return (
-      <div style={{ width: 56, height: 56, background: BRAND.red, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginTop: 2, color: 'white', textAlign: 'center', lineHeight: 1 }} title={`Question ${questionNumber} of ${TOTAL_QUESTIONS}`}>
-        <span className="serif" style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em' }}>Q{questionNumber}</span>
-        <span className="mono" style={{ fontSize: 9, opacity: 0.8, marginTop: 2, letterSpacing: '0.1em' }}>of {TOTAL_QUESTIONS}</span>
-      </div>
-    );
-  }
-  return (
-    <div style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
-      <GershonLogo size={32} />
+    <div style={{ width: 32, height: 32, background: BRAND.red, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+      <span className="serif" style={{ color: 'white', fontSize: 15, fontWeight: 600, fontStyle: 'italic' }}>G</span>
     </div>
   );
 }
@@ -1398,65 +1314,64 @@ function UserAvatar() {
 // Sidebar — progress + captured data
 // ============================================================================
 
-function ProgressPanel({ currentSection, sectionsDone, responses }: { currentSection: string; sectionsDone: Record<string, boolean>; responses: Record<string, any> }) {
-  const completedCount = Object.values(sectionsDone).filter(Boolean).length;
-  const totalSections = SECTIONS.length;
-  // Field-level pct (every answered Q moves the bar). Sections list below still
-  // shows section-level checkmarks so the user can see structural progress too.
-  const capturedFieldCount = Object.keys(responses).filter(k => {
-    const v = responses[k];
-    if (v == null) return false;
-    if (typeof v === 'string') return v.trim() !== '';
-    if (Array.isArray(v)) return v.length > 0;
-    return true;
-  }).length;
-  const progressPct = Math.min(100, Math.round((capturedFieldCount / TOTAL_QUESTIONS) * 100));
+function Sidebar({ currentSection, sectionsDone, responses }) {
   return (
-    <aside style={{ position: 'sticky', top: 88, alignSelf: 'start', maxHeight: 'calc(100vh - 110px)', overflowY: 'auto' }}>
-      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '18px 20px' }}>
-        <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 6 }}>Progress</div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
-          <div className="serif" style={{ fontSize: 32, fontWeight: 500, color: BRAND.red, lineHeight: 1 }}>{progressPct}%</div>
-          <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em' }}>{capturedFieldCount} of {TOTAL_QUESTIONS}</div>
-        </div>
-        <div style={{ marginBottom: 16, width: '100%', height: 3, background: BRAND.rule, position: 'relative' }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${progressPct}%`, background: BRAND.red, transition: 'width 0.3s' }} />
+    <aside style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {/* Progress */}
+      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '22px 24px' }}>
+        <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 18 }}>
+          Progress
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {SECTIONS.map(s => {
             const done = sectionsDone[s.id];
             const isCurrent = currentSection === s.id;
             return (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${BRAND.rule}`, opacity: done || isCurrent ? 1 : 0.5 }}>
+              <div key={s.id} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '10px 0',
+                borderBottom: `1px solid ${BRAND.rule}`,
+                opacity: done || isCurrent ? 1 : 0.5,
+              }}>
                 <div style={{ flexShrink: 0 }}>
-                  {done ? <Check size={13} color={BRAND.red} strokeWidth={2.5} /> : isCurrent ? <CircleDot size={13} color={BRAND.red} /> : <Circle size={13} color={BRAND.muted} />}
+                  {done ? <Check size={14} color={BRAND.red} strokeWidth={2.5} /> : isCurrent ? <CircleDot size={14} color={BRAND.red} /> : <Circle size={14} color={BRAND.muted} />}
                 </div>
-                <div className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.1em', width: 18 }}>{s.number}</div>
-                <div className="serif" style={{ fontSize: 12, color: isCurrent ? BRAND.red : BRAND.ink, fontStyle: isCurrent ? 'italic' : 'normal', fontWeight: isCurrent ? 500 : 400 }}>{s.title}</div>
+                <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em', width: 20 }}>
+                  {s.number}
+                </div>
+                <div className="serif" style={{ fontSize: 13, color: isCurrent ? BRAND.red : BRAND.ink, fontStyle: isCurrent ? 'italic' : 'normal', fontWeight: isCurrent ? 500 : 400 }}>
+                  {s.title}
+                </div>
               </div>
             );
           })}
         </div>
       </div>
-    </aside>
-  );
-}
 
-function CapturedPanel({ responses }) {
-  return (
-    <aside style={{ position: 'sticky', top: 88, alignSelf: 'start', maxHeight: 'calc(100vh - 110px)', overflowY: 'auto' }}>
-      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '18px 20px' }}>
-        <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 16 }}>Captured</div>
+      {/* Captured so far */}
+      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '22px 24px', flex: 1, minHeight: 0 }}>
+        <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 18 }}>
+          Captured
+        </div>
         {Object.keys(responses).length === 0 ? (
-          <div style={{ fontSize: 12, color: BRAND.muted, fontStyle: 'italic' }}>Your answers will appear here as we go.</div>
+          <div style={{ fontSize: 13, color: BRAND.muted, fontStyle: 'italic' }}>
+            Your answers will appear here as we go.
+          </div>
         ) : (
-          <div className="scroll-area" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="scroll-area" style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 480, overflowY: 'auto' }}>
             {Object.entries(responses).map(([key, value]) => {
               const fieldDef = findFieldDef(key);
               return (
                 <div key={key}>
-                  <div className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{fieldDef?.label || key}</div>
-                  <div style={{ fontSize: 12, color: BRAND.ink, marginTop: 3, lineHeight: 1.4 }}>{Array.isArray(value) ? value.join(', ') : String(value)}</div>
+                  <div className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                    {fieldDef?.label || key}
+                  </div>
+                  <div style={{ fontSize: 13, color: BRAND.ink, marginTop: 4, lineHeight: 1.4 }}>
+                    {Array.isArray(value) ? value.join(', ') : String(value)}
+                  </div>
                 </div>
               );
             })}
@@ -1479,7 +1394,7 @@ function findFieldDef(fieldId) {
 // Review Screen
 // ============================================================================
 
-function ReviewScreen({ responses, setResponses, editingField, setEditingField, editBuffer, setEditBuffer, acknowledgments, setAcknowledgments, termsAccepted, setTermsAccepted, signatureName, setSignatureName, signatureDate, setSignatureDate, canSign, hasQuoteReference, sign, backToChat }) {
+function ReviewScreen({ responses, setResponses, editingField, setEditingField, editBuffer, setEditBuffer, acknowledgments, setAcknowledgments, termsAccepted, setTermsAccepted, signatureName, setSignatureName, signatureDate, setSignatureDate, canSign, sign, backToChat, researchSource, uploadQuoteFile, uploadingFile }) {
 
   const startEdit = (fieldId) => {
     setEditingField(fieldId);
@@ -1495,55 +1410,147 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
     setEditBuffer('');
   };
 
+  // Compute completion stats for the progress strip at the top.
+  const allFields = SECTIONS.flatMap(s => s.fields.map(f => ({ ...f, sectionId: s.id, sectionNumber: s.number })));
+  const requiredFields = allFields.filter(f => f.required);
+  const filledRequired = requiredFields.filter(f => {
+    const v = responses[f.id];
+    return v !== undefined && v !== null && String(v).trim() !== '';
+  }).length;
+  const filledAny = allFields.filter(f => {
+    const v = responses[f.id];
+    return v !== undefined && v !== null && String(v).trim() !== '';
+  }).length;
+  const totalFields = allFields.length;
+  const pct = Math.round((filledAny / totalFields) * 100);
+  const requiredMissing = requiredFields.length - filledRequired;
+  const allRequiredFilled = requiredMissing === 0;
+
+  // Quote file upload — hidden file input lives at the review level.
+  const quoteFileRef = useRef<HTMLInputElement | null>(null);
+
+  // Sort SECTIONS: render in spec order. SECTIONS comes from outer scope.
+  // For each field, decide its visual state.
+  const fieldStatus = (f: any) => {
+    const v = responses[f.id];
+    const has = v !== undefined && v !== null && String(v).trim() !== '';
+    if (!has) return f.required ? 'missing-required' : 'missing-optional';
+    const fromResearch = researchSource && Array.isArray(researchSource.capturedFields) && researchSource.capturedFields.includes(f.id);
+    return fromResearch ? 'prefilled' : 'filled';
+  };
+
   return (
     <div className="fade-in" style={{ maxWidth: 960, margin: '0 auto', padding: '48px 32px 80px' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 48 }}>
+      <div style={{ marginBottom: 32 }}>
         <div className="mono" style={{ fontSize: 11, color: BRAND.red, textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-          — Final Step · Review &amp; Sign
+          — {researchSource ? 'Pre-filled from research · Edit & Sign' : 'Manual intake · Fill & Sign'}
         </div>
         <h1 className="serif" style={{ fontSize: 44, fontWeight: 400, color: BRAND.ink, margin: '16px 0 0', letterSpacing: '-0.02em' }}>
-          Review everything, <span style={{ fontStyle: 'italic', color: BRAND.red }}>then sign.</span>
+          {researchSource ? (
+            <>Here's what we found. <span style={{ fontStyle: 'italic', color: BRAND.red }}>Edit anything that's off.</span></>
+          ) : (
+            <>Fill in your intake, <span style={{ fontStyle: 'italic', color: BRAND.red }}>then sign.</span></>
+          )}
         </h1>
-        <p style={{ fontSize: 16, lineHeight: 1.6, color: BRAND.charcoalLight, marginTop: 16, maxWidth: 640 }}>
-          Take a moment to check the captured answers below. Click any field to edit. When you're ready, acknowledge the terms and sign to make this intake binding.
+        <p style={{ fontSize: 16, lineHeight: 1.6, color: BRAND.charcoalLight, marginTop: 16, maxWidth: 720 }}>
+          {researchSource ? (
+            <>We did the homework on <strong>{(() => { try { return new URL(researchSource.url).hostname; } catch { return researchSource.url; } })()}</strong>{researchSource.linkedInUrl ? <> and <strong>your LinkedIn profile</strong></> : null}. Click any field to edit. Fields we couldn't pre-fill are marked <span style={{ color: BRAND.red }}>"needs your input"</span>. Acknowledge the terms at the bottom and sign to finish.</>
+          ) : (
+            <>Click any field to fill it in. Required fields are marked with a red dot. Acknowledge the terms at the bottom and sign to finish.</>
+          )}
         </p>
-        <button onClick={backToChat} className="btn-ghost" style={{ marginTop: 24 }}>← Back to conversation</button>
+        <button onClick={backToChat} className="btn-ghost" style={{ marginTop: 20 }}>← Start over</button>
       </div>
 
-      {/* Captured data sections */}
-      {SECTIONS.map(section => {
-        const sectionFields = section.fields.filter(f => responses[f.id] !== undefined && responses[f.id] !== '');
-        if (sectionFields.length === 0) return null;
+      {/* Progress strip */}
+      <div style={{ marginBottom: 36, padding: 18, background: BRAND.paper, border: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', gap: 24 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span className="mono" style={{ fontSize: 11, color: BRAND.muted, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              {filledAny} of {totalFields} fields filled
+            </span>
+            <span className="mono" style={{ fontSize: 11, color: allRequiredFilled ? BRAND.red : BRAND.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {allRequiredFilled ? '✓ All required complete' : `${requiredMissing} required missing`}
+            </span>
+          </div>
+          <div style={{ height: 3, background: BRAND.rule, position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${pct}%`, background: BRAND.red, transition: 'width 0.4s' }} />
+          </div>
+        </div>
+      </div>
 
+      {/* All-fields, all-sections view */}
+      {SECTIONS.map(section => {
         return (
           <div key={section.id} style={{ marginBottom: 40 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 20, paddingBottom: 12, borderBottom: `2px solid ${BRAND.red}` }}>
               <div className="mono" style={{ fontSize: 11, color: BRAND.red, letterSpacing: '0.2em' }}>{section.number}</div>
               <div className="serif" style={{ fontSize: 22, fontWeight: 500 }}>{section.title}</div>
+              {section.optional && (
+                <div className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.12em', textTransform: 'uppercase' }}>(optional service)</div>
+              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {sectionFields.map(f => {
+              {section.fields.map(f => {
                 const value = responses[f.id];
                 const isEditing = editingField === f.id;
+                const status = fieldStatus(f);
+                const hasValue = status === 'prefilled' || status === 'filled';
+
                 return (
-                  <div key={f.id} style={{ padding: '16px 0', borderBottom: `1px solid ${BRAND.rule}`, display: 'grid', gridTemplateColumns: '240px 1fr auto', gap: 20, alignItems: 'flex-start' }}>
-                    <div className="mono" style={{ fontSize: 11, color: BRAND.muted, letterSpacing: '0.08em', textTransform: 'uppercase', paddingTop: 4 }}>
-                      {f.label}
+                  <div key={f.id} style={{
+                    padding: '16px 0',
+                    borderBottom: `1px solid ${BRAND.rule}`,
+                    display: 'grid',
+                    gridTemplateColumns: '260px 1fr auto',
+                    gap: 20,
+                    alignItems: 'flex-start',
+                    background: status === 'missing-required' ? 'rgba(204, 51, 51, 0.03)' : 'transparent',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
+                      {f.required && <span style={{ width: 6, height: 6, borderRadius: '50%', background: hasValue ? BRAND.red : '#D9C8C8', display: 'inline-block', flexShrink: 0 }} title={f.required ? 'Required' : ''} />}
+                      <div className="mono" style={{ fontSize: 11, color: BRAND.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        {f.label}
+                      </div>
                     </div>
                     {isEditing ? (
                       <textarea
                         value={editBuffer}
                         onChange={(e) => setEditBuffer(e.target.value)}
-                        rows={f.long ? 4 : 1}
+                        rows={(f as any).long ? 4 : 1}
                         autoFocus
                         className="sans"
                         style={{ border: `1px solid ${BRAND.red}`, padding: '8px 12px', fontSize: 14, fontFamily: 'Inter', resize: 'vertical', lineHeight: 1.5 }}
                       />
                     ) : (
-                      <div className="serif" style={{ fontSize: 15.5, color: BRAND.ink, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                        {Array.isArray(value) ? value.join(', ') : String(value)}
+                      <div className="serif" style={{ fontSize: 15.5, color: BRAND.ink, lineHeight: 1.5, whiteSpace: 'pre-wrap', minHeight: 24 }}>
+                        {f.id === 'quoteReference' && typeof value === 'string' && value.includes('http') ? (
+                          (() => {
+                            const m = value.match(/(https?:\/\/\S+)/);
+                            const url = m ? m[1] : '';
+                            const name = value.replace(/Uploaded quote:\s*/, '').replace(/ — https?:\/\/\S+/, '');
+                            return url ? (
+                              <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: BRAND.red, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3 }}>
+                                <FileText size={14} /> {name || 'View quote file'}
+                              </a>
+                            ) : <>{String(value)}</>;
+                          })()
+                        ) : hasValue ? (
+                          <>
+                            {Array.isArray(value) ? value.join(', ') : String(value)}
+                            {status === 'prefilled' && (
+                              <span className="mono" style={{ marginLeft: 10, padding: '2px 6px', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', background: BRAND.cream, color: BRAND.red, border: `1px solid ${BRAND.redLight}`, verticalAlign: 'middle' }}>
+                                ✓ from research
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span style={{ color: status === 'missing-required' ? BRAND.red : BRAND.muted, fontStyle: 'italic', fontSize: 14 }}>
+                            {status === 'missing-required' ? 'Needs your input' : 'Optional — click to add'}
+                          </span>
+                        )}
                       </div>
                     )}
                     {isEditing ? (
@@ -1552,9 +1559,51 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                         <button onClick={cancelEdit} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12 }}>Cancel</button>
                       </div>
                     ) : (
-                      <button onClick={() => startEdit(f.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BRAND.muted, padding: 4 }}>
-                        <Pencil size={14} />
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {f.id === 'quoteReference' && (
+                          <>
+                            <input
+                              ref={quoteFileRef}
+                              type="file"
+                              accept=".pdf,.png,.jpg,.jpeg,.docx,.doc,.xlsx,.xls,.txt"
+                              style={{ display: 'none' }}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) uploadQuoteFile(file);
+                                if (quoteFileRef.current) quoteFileRef.current.value = '';
+                              }}
+                            />
+                            <button
+                              onClick={() => quoteFileRef.current?.click()}
+                              disabled={!!uploadingFile}
+                              className="mono"
+                              style={{
+                                fontSize: 10,
+                                color: uploadingFile ? BRAND.muted : BRAND.red,
+                                background: 'none',
+                                border: `1px solid ${BRAND.red}`,
+                                padding: '4px 10px',
+                                cursor: uploadingFile ? 'wait' : 'pointer',
+                                letterSpacing: '0.08em',
+                                textTransform: 'uppercase',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                              }}
+                              title="Upload your validated quote (PDF, image, DOCX, up to 15 MB)"
+                            >
+                              {uploadingFile ? (
+                                <><span className="dot"></span> Uploading…</>
+                              ) : (
+                                <><Paperclip size={10} /> Upload</>
+                              )}
+                            </button>
+                          </>
+                        )}
+                        <button onClick={() => startEdit(f.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BRAND.muted, padding: 4 }} title="Edit">
+                          <Pencil size={14} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
@@ -1662,18 +1711,6 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
           </div>
         </div>
 
-        {!hasQuoteReference && (
-          <div style={{ marginTop: 28, padding: '14px 18px', border: `1px solid ${BRAND.red}`, background: '#fef2f2', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div className="mono" style={{ fontSize: 11, color: BRAND.red, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>Quote reference required</div>
-            <div style={{ fontSize: 14, color: BRAND.ink, lineHeight: 1.5 }}>
-              You can't sign and submit this onboarding without the reference number of the quote Gershon Consulting validated with you. That number links this intake to the contractual scope and pricing of your campaign.
-            </div>
-            <div style={{ fontSize: 13, color: BRAND.ink, lineHeight: 1.5 }}>
-              If you don't have the quote: please email <a href="mailto:form@gershonconsulting.com" style={{ color: BRAND.red, fontWeight: 500 }}>form@gershonconsulting.com</a> to request it. Once you have the reference, return to this form and enter it under Q42 — "Reference of the validated quote" — then come back here to sign.
-            </div>
-          </div>
-        )}
-
         <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.1em' }}>
             BY SIGNING, THIS INTAKE BECOMES BINDING ON THE PROJECT
@@ -1682,7 +1719,6 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
             className="btn-primary"
             onClick={sign}
             disabled={!canSign}
-            title={!hasQuoteReference ? 'A quote reference from Gershon Consulting is required before signing.' : ''}
             style={{ padding: '14px 32px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 10 }}
           >
             Sign &amp; submit <ArrowRight size={16} />
@@ -1697,7 +1733,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
 // Signed / Thank you screen
 // ============================================================================
 
-function SignedScreen({ responses, signatureName, signatureDate, exportJSON }) {
+function SignedScreen({ responses, signatureName, signatureDate, exportJSON, exportPDF }) {
   return (
     <div className="fade-in" style={{ maxWidth: 720, margin: '0 auto', padding: '80px 32px', textAlign: 'left' }}>
       <div style={{ width: 56, height: 56, background: BRAND.red, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32 }}>
@@ -1734,13 +1770,23 @@ function SignedScreen({ responses, signatureName, signatureDate, exportJSON }) {
         </div>
       </div>
 
-      <div style={{ marginTop: 32, display: 'flex', gap: 12 }}>
-        <button className="btn-primary" onClick={exportJSON} style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <Download size={14} /> Download intake (JSON)
+      <div style={{ marginTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <button className="btn-primary" onClick={exportPDF} style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <Download size={14} /> Download intake (PDF)
+        </button>
+        <button className="btn-ghost" onClick={exportJSON} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <Download size={12} /> JSON copy
         </button>
         <button className="btn-ghost" onClick={() => window.location.reload()}>
           Start another
         </button>
+      </div>
+
+      <div style={{ marginTop: 32, padding: 20, background: BRAND.cream, border: `1px solid ${BRAND.rule}`, fontSize: 13.5, lineHeight: 1.6, color: BRAND.charcoalLight }}>
+        <div className="mono" style={{ fontSize: 10, color: BRAND.red, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>What happens next</div>
+        <div>1. We've stored your intake securely on Gershon's side and a copy was emailed to the Gershon team.</div>
+        <div>2. You'll get a reply within one business day to confirm kickoff and schedule the first weekly update call.</div>
+        <div>3. Save the PDF above for your records — it's the binding reference for the campaign.</div>
       </div>
 
       <div style={{ marginTop: 64, paddingTop: 24, borderTop: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', gap: 10 }}>

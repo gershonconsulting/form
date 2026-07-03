@@ -1,71 +1,160 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { anthropic, MODEL } from '@/lib/anthropic';
+import { NextRequest, NextResponse } from "next/server";
+import {
+  callAnthropic,
+  extractJsonObject,
+  extractText,
+} from "@/lib/anthropic";
 
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// REQUIRED on Cloudflare Pages — without this the build fails with a runtime mismatch.
+export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
-  let url: unknown;
+  let body: any;
   try {
-    const body = await req.json();
-    url = body?.url;
+    body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 });
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
 
-  if (!url || typeof url !== 'string') {
-    return NextResponse.json({ error: 'url required' }, { status: 400 });
+  const url = body?.url;
+  const linkedInUrl = body?.linkedInUrl; // optional
+
+  if (!url || typeof url !== "string") {
+    return NextResponse.json({ error: "url required" }, { status: 400 });
   }
 
-  const prompt = `A new client is starting the Gershon Consulting onboarding for a US lead-generation campaign. Their website is: ${url}
+  // ONE research pass that hits BOTH the company website and the person's
+  // LinkedIn profile (when supplied), and returns a JSON capture across every
+  // field in the Gershon onboarding schema. We instruct the model to extract
+  // ONLY what it's confident about — empty strings are fine, fabrication is not.
+  const prompt = `A new client is starting the Gershon Consulting onboarding for a US lead-generation campaign.
 
-Use web_search to research this company. Return a single JSON object — ONLY fields you are confident about. Return ONLY the JSON. No markdown fences.
+Their company website: ${url}
+${linkedInUrl ? `The contact's personal LinkedIn profile: ${linkedInUrl}` : "No personal LinkedIn URL was provided."}
+
+Use web_search aggressively. Do AT LEAST these searches:
+1. The company homepage + About / Products / Customers pages
+2. The company LinkedIn page (search "site:linkedin.com/company [company name]")
+3. ${linkedInUrl ? `The contact's personal LinkedIn profile at ${linkedInUrl} — pull their name, current title, current company, headline, recent posts, geographic location` : `If you can identify the company's founder/CEO from the website, search their personal LinkedIn`}
+4. Recent news mentions (last 6 months)
+5. Top 3–5 competitors and their websites
+
+Then return a SINGLE JSON object filling in as MANY of the fields below as you can with HIGH CONFIDENCE. For fields you cannot confidently fill, return an empty string "" — DO NOT fabricate. Strip any <cite ...> tags or [1] / [2-14] markers from your values.
+
+For multi-value fields (targetIndustries, targetTitles, top5Highlights, productLinks, googleKeywords, competitorTwitterAccounts, competitors), return comma-separated or newline-separated strings — the UI will display them as-is and the user will edit if needed.
+
+Schema (return EXACTLY this shape — empty string for unknown):
 
 {
-  "summary": "2-3 sentence description",
+  "summary": "2-3 sentence internal description of what this company does",
   "capture": {
-    "companyName": "…",
-    "website": "…",
-    "businessType": "B2B | B2C | B2B2C | marketplace | agency",
-    "industry": "specific sub-industry",
-    "productLinks": "URLs comma-separated",
-    "targetDefinition": "best-guess ICP",
-    "targetIndustries": "likely target industries",
-    "targetTitles": "likely buyer personas",
-    "top5Highlights": "5 differentiators newline-separated",
-    "googleKeywords": "likely keywords comma-separated",
-    "competitors": "3-5 competitors with website + one line each",
-    "competitorTwitterAccounts": "comma-separated handles"
+    "companyName": "",
+    "firstName": "",
+    "lastName": "",
+    "title": "",
+    "email": "",
+    "mobilePhone": "",
+    "businessType": "",
+    "industry": "",
+    "expectations": "",
+    "productLinks": "",
+    "website": "${url}",
+    "campaignDuration": "6 months",
+    "campaignServices": "All three: ENGAGE + PROMOTE + NETWORK",
+    "meetingsPerMonth": "10 qualified meetings/month",
+    "targetDefinition": "",
+    "targetGeography": "United States",
+    "targetIndustries": "",
+    "targetTitles": "",
+    "targetHeadcount": "",
+    "targetRevenue": "",
+    "top5Highlights": "",
+    "otherContent": "",
+    "dontWantContent": "",
+    "twitterHashtags": "",
+    "competitorTwitterAccounts": "",
+    "googleKeywords": "",
+    "photosLink": "",
+    "royaltyFreeConsent": "",
+    "linkedInPageAdmin": "",
+    "facebookPageAdmin": "",
+    "googleBusinessAdmin": "",
+    "twitterCredentials": "",
+    "companyLinkedIn": "",
+    "personalLinkedIn": "${linkedInUrl || ""}",
+    "salesNavActive": "",
+    "linalysisActive": "",
+    "calendlyLink": "",
+    "ssiScores": "",
+    "competitors": "",
+    "additionalComments": "",
+    "startDate": "",
+    "quoteReference": ""
   }
-}`;
+}
+
+Notes:
+- campaignDuration / campaignServices / meetingsPerMonth — pre-fill the standard Gershon defaults as shown above.
+- targetGeography defaults to "United States" since Gershon serves non-US clients entering the US market.
+- companyName + website should be filled from the homepage.
+- If the LinkedIn URL is provided, fill firstName/lastName/title from that profile.
+- companyLinkedIn = the company's LinkedIn page URL.
+- personalLinkedIn = the contact's profile URL (already provided).
+- top5Highlights = the 5 most compelling differentiators the company should highlight on social, drawn from their site/positioning copy.
+- competitors = newline-separated list, format: "Name (url) — one line why they're a competitor"
+- targetTitles, targetIndustries, googleKeywords = comma-separated lists.
+- Leave the admin / activation / consent / acknowledgment-style fields empty — user has to do those actions themselves.
+
+Return ONLY the JSON object. No markdown, no preamble.`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 3000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' } as any],
-      messages: [{ role: 'user', content: prompt }],
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "ANTHROPIC_API_KEY not configured" },
+        { status: 500 },
+      );
+    }
+
+    const response = await callAnthropic(
+      {
+        max_tokens: 6000,
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+        messages: [{ role: "user", content: prompt }],
+      },
+      apiKey,
+    );
+
+    const text = extractText(response);
+    const parsed =
+      extractJsonObject<{ summary: string; capture: Record<string, string> }>(
+        text,
+      ) ?? { summary: "", capture: {} };
+
+    // Defensive: strip any <cite> tags / [N-M] markers that leaked into values.
+    const cleanCapture: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed.capture || {})) {
+      if (typeof v === "string") {
+        cleanCapture[k] = v
+          .replace(/<\/?cite[^>]*>/gi, "")
+          .replace(/\[\d+(?:-\d+)?\]/g, "")
+          .trim();
+      } else if (Array.isArray(v)) {
+        cleanCapture[k] = v.join(", ");
+      } else if (v != null) {
+        cleanCapture[k] = String(v);
+      } else {
+        cleanCapture[k] = "";
+      }
+    }
+
+    return NextResponse.json({
+      summary: parsed.summary || "",
+      capture: cleanCapture,
     });
-
-    const text = response.content
-      .filter((b: any) => b.type === 'text')
-      .map((b: any) => b.text)
-      .join('\n')
-      .replace(/```json|```/g, '')
-      .trim();
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { summary: '', capture: {} };
-    return NextResponse.json(parsed);
   } catch (e: any) {
-    // Fail soft — the UI can let the client fill manually. Log enough detail
-    // to diagnose from Cloudflare function logs without leaking key material.
-    console.error('[research] Anthropic call failed:', {
-      message: e?.message,
-      status: e?.status,
-      body: (e?.body || '').slice(0, 500),
-    });
-    return NextResponse.json({ summary: '', capture: {} });
+    console.error("Research error:", e?.message || e);
+    // Fail soft so the UI can let the client fill manually.
+    return NextResponse.json({ summary: "", capture: {} });
   }
 }
