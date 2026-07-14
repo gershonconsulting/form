@@ -464,49 +464,48 @@ export default function GershonOnboarding() {
     await callClaude(history);
   };
 
-  // Quote file upload — when the user is in the Timing & Quote section, they can attach
-  // their validated quote PDF. We upload to Supabase Storage (via /api/upload) and then
-  // send the resulting reference as a user message so the AI captures it as quoteReference.
+  // Quote file — read in the browser as base64, hold in state, send inline at submit.
+  // No separate /api/upload roundtrip: the file rides along with the JSON payload to
+  // /api/submit and lands as a native Airtable attachment on the created record.
   const [uploadingFile, setUploadingFile] = useState<string | null>(null);
+  const [pendingQuoteFile, setPendingQuoteFile] = useState<{
+    filename: string;
+    contentType: string;
+    base64: string;
+    size: number;
+  } | null>(null);
+  const MAX_QUOTE_BYTES = 15 * 1024 * 1024; // 15 MB
   const uploadQuoteFile = async (file: File) => {
     if (!file || isLoading) return;
-    setUploadingFile(file.name);
     setError(null);
+    if (file.size > MAX_QUOTE_BYTES) {
+      setError(`File too large (max 15 MB). Yours is ${(file.size / 1024 / 1024).toFixed(1)} MB.`);
+      return;
+    }
+    setUploadingFile(file.name);
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      if (sessionId) fd.append('sessionId', sessionId);
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Upload failed');
-      }
-      // Send a synthesized user message so the AI sees the file as the quote answer.
-      const captureValue = `Uploaded quote: ${data.filename} — ${data.url}`;
-
-      if (phase === 'review' || phase === 'url_intake') {
-        // Form-fill flow: just set the response directly. No conversation involved.
-        setResponses(prev => ({ ...prev, quoteReference: captureValue }));
-      } else {
-        // Legacy chat flow: send as a user message so the AI captures it.
-        const userMsg = {
-          role: 'user' as const,
-          content: captureValue,
-          ts: Date.now(),
+      const base64: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = String(reader.result || '');
+          // Strip "data:<mime>;base64," prefix — Airtable wants raw base64.
+          const idx = dataUrl.indexOf(',');
+          resolve(idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl);
         };
-        const newMessages = [...messages, userMsg];
-        setMessages(newMessages);
-        const history = newMessages.map(m => ({
-          role: m.role,
-          content: m.role === 'assistant'
-            ? JSON.stringify({ message: m.content, capture: {}, currentSection, sectionComplete: false, readyForReview: false })
-            : m.content,
-        }));
-        await callClaude(history);
-      }
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+      setPendingQuoteFile({
+        filename: file.name,
+        contentType: file.type || 'application/octet-stream',
+        base64,
+        size: file.size,
+      });
+      const captureValue = `Attached: ${file.name} (${(file.size / 1024).toFixed(0)} KB) — will be uploaded on submit`;
+      setResponses(prev => ({ ...prev, quoteReference: captureValue }));
     } catch (e: any) {
-      console.error('Upload error', e);
-      setError(e?.message || 'Could not upload your file. You can also type the quote reference (e.g. QU0011) instead.');
+      console.error('Read error', e);
+      setError(e?.message || 'Could not read your file. You can also type the quote reference (e.g. QU0011) instead.');
     } finally {
       setUploadingFile(null);
     }
@@ -545,13 +544,23 @@ export default function GershonOnboarding() {
           termsAccepted,
           signature: { name: signatureName, date: signatureDate },
           conversationTranscript: messages,
+          quoteFile: pendingQuoteFile
+            ? {
+                base64: pendingQuoteFile.base64,
+                filename: pendingQuoteFile.filename,
+                contentType: pendingQuoteFile.contentType,
+              }
+            : undefined,
         }),
       });
-      if (!res.ok) throw new Error('Failed');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Failed');
+      }
       setPhase('signed');
-    } catch (e) {
+    } catch (e: any) {
       console.error('Submit error:', e);
-      setError('Submission failed. Please try again.');
+      setError(e?.message || 'Submission failed. Please try again.');
     }
   };
 

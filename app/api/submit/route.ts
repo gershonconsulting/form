@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import {
+  createSubmission,
+  toAirtableFields,
+  uploadAttachment,
+} from "@/lib/airtable";
 import { sendIntakeNotification } from "@/lib/email";
 
 export const runtime = "edge";
 
+// Signed submission handler.
+// Persists the intake as one row in the Airtable "Submissions" table, uploads
+// the (optional) quote file as a native attachment on that row, and fires a
+// courtesy email to the Gershon team via Resend. Email + attachment failures
+// never block the response — the row is what matters for the audit trail.
 export async function POST(req: NextRequest) {
   let payload: any;
   try {
@@ -18,9 +27,10 @@ export async function POST(req: NextRequest) {
     termsAccepted,
     signature,
     conversationTranscript,
+    sessionId,
+    quoteFile, // optional: { base64, filename, contentType }
   } = payload || {};
 
-  // Minimal validation — the UI does the heavy lifting, but reject obviously broken payloads.
   if (
     !responses ||
     typeof responses !== "object" ||
@@ -43,32 +53,45 @@ export async function POST(req: NextRequest) {
   const userAgent = req.headers.get("user-agent") || "";
 
   try {
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("onboarding_submissions")
-      .insert({
-        responses,
-        acknowledgments,
-        terms_accepted: termsAccepted,
-        signature_name: signature.name,
-        signature_date: signature.date,
-        conversation_transcript: conversationTranscript || null,
-        submitted_ip: ip || null,
-        submitted_user_agent: userAgent || null,
-      })
-      .select("id")
-      .single();
+    const fields = toAirtableFields({
+      responses,
+      acknowledgments,
+      termsAccepted,
+      signature,
+      sessionId,
+      ip,
+      userAgent,
+      conversationTranscript,
+    });
 
-    if (error) {
-      console.error("Submission insert error:", error.message);
-      return NextResponse.json({ error: "Submission failed" }, { status: 500 });
+    const created = await createSubmission(fields);
+
+    // Attach file — non-blocking on failure. If the file is huge or Airtable is
+    // flaky, still return success so the client sees the intake as saved.
+    if (
+      quoteFile &&
+      typeof quoteFile.base64 === "string" &&
+      quoteFile.filename
+    ) {
+      try {
+        await uploadAttachment({
+          recordId: created.id,
+          filename: String(quoteFile.filename).slice(0, 120),
+          contentType: quoteFile.contentType || "application/octet-stream",
+          fileBase64: quoteFile.base64,
+        });
+      } catch (attachErr: any) {
+        console.error(
+          "Quote attachment failed (non-blocking):",
+          attachErr?.message || attachErr,
+        );
+      }
     }
 
-    // Fire-and-forget email notification — failures here MUST NOT block the response.
-    // The Supabase row is already saved; the email is just a courtesy copy.
+    // Fire-and-forget notification.
     try {
       await sendIntakeNotification({
-        receiptId: data.id,
+        receiptId: created.id,
         responses,
         acknowledgments,
         termsAccepted,
@@ -81,9 +104,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ receiptId: data.id, success: true });
+    return NextResponse.json({ receiptId: created.id, success: true });
   } catch (e: any) {
     console.error("Submission error:", e?.message || e);
-    return NextResponse.json({ error: "Submission failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message || "Submission failed" },
+      { status: 500 },
+    );
   }
 }
