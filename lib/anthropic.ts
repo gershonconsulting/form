@@ -53,3 +53,64 @@ async function messagesCreate(params: MessagesCreateParams) {
 export const anthropic = {
   messages: { create: messagesCreate },
 };
+
+// ---------------------------------------------------------------------------
+// Helpers used by app/api/research and app/api/chat (added 2026-10-22).
+// Those routes imported callAnthropic / extractText / extractJsonObject since
+// a8494cb, but they were never exported here, so both routes threw at runtime
+// ("callAnthropic is not a function") and research silently fell back to manual.
+// ---------------------------------------------------------------------------
+
+export async function callAnthropic(
+  params: Omit<MessagesCreateParams, 'model'> & { model?: string },
+  apiKey?: string,
+) {
+  const key = apiKey || process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY is not set');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({ model: MODEL, ...params }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '<no body>');
+    const err: any = new Error(`Anthropic API error ${res.status}: ${errText}`);
+    err.status = res.status;
+    err.body = errText;
+    throw err;
+  }
+  return res.json();
+}
+
+/** Concatenate every text block of a Messages API response (tool blocks are skipped). */
+export function extractText(response: any): string {
+  const blocks = Array.isArray(response?.content) ? response.content : [];
+  return blocks
+    .filter((b: any) => b && b.type === 'text' && typeof b.text === 'string')
+    .map((b: any) => b.text)
+    .join('')
+    .trim();
+}
+
+/** Pull the first JSON object out of model text (handles ```json fences and prose around it). */
+export function extractJsonObject<T = unknown>(text: string): T | null {
+  if (!text) return null;
+  const candidates: string[] = [];
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) candidates.push(fence[1]);
+  const first = text.indexOf('{');
+  const last = text.lastIndexOf('}');
+  if (first !== -1 && last > first) candidates.push(text.slice(first, last + 1));
+  candidates.push(text);
+  for (const c of candidates) {
+    try {
+      const v = JSON.parse(c.trim());
+      if (v && typeof v === 'object' && !Array.isArray(v)) return v as T;
+    } catch { /* try next */ }
+  }
+  return null;
+}
