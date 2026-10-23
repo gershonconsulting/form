@@ -29,6 +29,9 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   ? 'BUILD DEV'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
+// Visible app version — bump on every UI change so previews are easy to tell apart.
+const APP_VERSION = 'v0.2.0';
+
 // Full field schema derived from the original Google Form
 const SECTIONS = [
   {
@@ -269,7 +272,12 @@ export default function GershonOnboarding() {
   const [acknowledgments, setAcknowledgments] = useState({});
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [signatureName, setSignatureName] = useState('');
-  const [signatureDate, setSignatureDate] = useState(new Date().toISOString().slice(0, 10));
+  // Start empty and fill on the client: computing "today" during render gives the
+  // server and the browser different values (timezone / day boundary) → hydration mismatch.
+  const [signatureDate, setSignatureDate] = useState('');
+  useEffect(() => {
+    setSignatureDate((d) => d || new Date().toISOString().slice(0, 10));
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -726,8 +734,10 @@ export default function GershonOnboarding() {
 
   return (
     <div style={{ minHeight: '100vh', background: BRAND.cream, color: BRAND.ink, fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+      {/* dangerouslySetInnerHTML: a plain {`...`} child gets its quotes HTML-escaped on SSR
+          (' -> &#x27;), which broke the CSS and caused React hydration errors #418/#423/#425.
+          Fonts are now loaded with <link> in app/layout.tsx instead of @import here. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         * { box-sizing: border-box; }
         .serif { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; }
         .mono { font-family: 'JetBrains Mono', 'SF Mono', monospace; letter-spacing: -0.01em; }
@@ -759,8 +769,15 @@ export default function GershonOnboarding() {
         .scroll-area::-webkit-scrollbar-thumb { background: ${BRAND.rule}; border-radius: 3px; }
         .scroll-area::-webkit-scrollbar-thumb:hover { background: ${BRAND.muted}; }
 
+        /* Phone: review rows stack (label on top) instead of a 260px label column */
+        @media (max-width: 640px) {
+          .review-row { grid-template-columns: minmax(0, 1fr) auto !important; gap: 8px 12px !important; }
+          .review-row > :first-child { grid-column: 1 / -1; }
+          .review-row > * { min-width: 0; overflow-wrap: anywhere; }
+        }
+
         .tick-line { background: linear-gradient(90deg, ${BRAND.red} 0%, ${BRAND.red} 40px, ${BRAND.rule} 40px, ${BRAND.rule} 100%); }
-      `}</style>
+      ` }} />
 
       {/* ============ HEADER ============ */}
       <header style={{ borderBottom: `1px solid ${BRAND.rule}`, background: BRAND.paper, position: 'sticky', top: 0, zIndex: 10 }}>
@@ -777,7 +794,7 @@ export default function GershonOnboarding() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Lock size={12} color={BRAND.muted} />
             <span className="mono" style={{ fontSize: 10, color: BRAND.muted, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Secured · Binding</span>
-            <span className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.1em', marginLeft: 12, paddingLeft: 12, borderLeft: `1px solid ${BRAND.rule}`, opacity: 0.7 }} title={`Build: ${BUILD_TIME}`}>{BUILD_LABEL}</span>
+            <span className="mono" style={{ fontSize: 9, color: BRAND.muted, letterSpacing: '0.1em', marginLeft: 12, paddingLeft: 12, borderLeft: `1px solid ${BRAND.rule}`, opacity: 0.7 }} title={`Build: ${BUILD_TIME}`}>{APP_VERSION} · {BUILD_LABEL}</span>
           </div>
         </div>
       </header>
@@ -903,7 +920,7 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
             Your company website <span style={{ color: BRAND.red }}>*</span>
           </label>
           <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${touched && !isValid ? BRAND.red : BRAND.rule}`, background: BRAND.paper, transition: 'border 0.15s' }}>
-            <span className="mono" style={{ padding: '16px 14px 16px 18px', fontSize: 13, color: BRAND.muted, borderRight: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center' }}>
+            <span className="mono" style={{ padding: '16px 14px 16px 18px', fontSize: 13, color: BRAND.muted, borderRight: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               https://
             </span>
             <input
@@ -916,6 +933,8 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
               className="sans"
               style={{
                 flex: 1,
+                minWidth: 0,
+                width: '100%',
                 border: 'none',
                 padding: '16px 18px',
                 fontSize: 17,
@@ -937,7 +956,7 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
             Your LinkedIn profile <span style={{ color: BRAND.muted, fontWeight: 400 }}>(optional, big quality boost)</span>
           </label>
           <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${touched && !linkedInValid ? BRAND.red : BRAND.rule}`, background: BRAND.paper, transition: 'border 0.15s' }}>
-            <span className="mono" style={{ padding: '16px 14px 16px 18px', fontSize: 13, color: BRAND.muted, borderRight: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center' }}>
+            <span className="mono" style={{ padding: '16px 14px 16px 18px', fontSize: 13, color: BRAND.muted, borderRight: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               linkedin.com/in/
             </span>
             <input
@@ -952,6 +971,8 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
               className="sans"
               style={{
                 flex: 1,
+                minWidth: 0,
+                width: '100%',
                 border: 'none',
                 padding: '16px 18px',
                 fontSize: 17,
@@ -1509,7 +1530,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                 const hasValue = status === 'prefilled' || status === 'filled';
 
                 return (
-                  <div key={f.id} style={{
+                  <div key={f.id} className="review-row" style={{
                     padding: '16px 0',
                     borderBottom: `1px solid ${BRAND.rule}`,
                     display: 'grid',

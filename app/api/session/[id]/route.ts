@@ -1,33 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { NextResponse } from 'next/server';
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const { responses, sectionsDone, messages, researchSource } = await req.json();
-  const { id } = params;
-
-  const { error } = await supabaseAdmin
-    .from('onboarding_sessions')
-    .upsert(
-      {
-        id,
-        responses,
-        sections_done: sectionsDone,
-        messages,
-        research_source: researchSource,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' }
-    );
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true });
+// Session autosave used to write to Supabase (onboarding_sessions). Supabase was
+// removed in f83284e (Airtable is the store now) but this route still imported
+// '@/lib/supabase', so `next build` failed on main. The client never calls this
+// route, so it is now an explicit "gone" stub until a real Airtable autosave exists.
+export async function PUT() {
+  return NextResponse.json(
+    { ok: false, error: 'session autosave is not available (Supabase removed)' },
+    { status: 410 }
+  );
 }

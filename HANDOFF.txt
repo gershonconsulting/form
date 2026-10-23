@@ -1,0 +1,58 @@
+form.gershoncrm.com — HANDOFF (updated 2026-10-22, v0.2.0, branch nightly/2026-10-22-form-hydration)
+==========================================
+
+WHAT IT IS
+"Onboarding AI Form": a client types their website (+ optional LinkedIn) -> /api/research (Anthropic Messages API + web
+search) pre-fills the intake -> client reviews every field, uploads the validated quote, signs -> /api/submit stores the
+row (+ quote file attachment) in Airtable and emails a notification through Resend.
+Single page: app/page.tsx -> components/GershonOnboarding.tsx (all UI). API routes in app/api/*. Helpers in lib/*.
+
+STACK / DEPLOY
+- Next.js 14.2.15 (app router), React 18, edge runtime for every API route.
+- Hosting: most likely Cloudflare Pages project "gershon-form" via @cloudflare/next-on-pages (pages:* scripts, edge
+  runtime, NODE_VERSION note in .env.example). README.md and form_gershoncrm_setup_for_charles.md still describe the
+  original Vercel + Supabase setup and are outdated. Charles: confirm which host serves form.gershoncrm.com.
+  No branch previews.
+- Env (set in Cloudflare, never in the repo): ANTHROPIC_API_KEY, AIRTABLE_* (see .env.example), RESEND_API_KEY,
+  GERSHON_NOTIFY_TO, GERSHON_NOTIFY_FROM.
+- Visible version: header shows "v0.2.0 · BUILD <build time>" (APP_VERSION in GershonOnboarding.tsx + package.json).
+
+DONE ✅ (2026-10-22, PR nightly/2026-10-22-form-hydration)
+✅ React hydration errors #418/#423/#425 fixed: the big inline <style>{`...`}</style> is now
+   <style dangerouslySetInnerHTML={{__html: ...}} /> (SSR used to escape ' to &#x27;, breaking the CSS and the font URL).
+✅ Bogus 404 request "/&#x27;https://fonts.googleapis.com/..." gone: fonts (Fraunces, Inter, JetBrains Mono) are loaded
+   with <link> tags in app/layout.tsx; viewport meta added there too.
+✅ signatureDate no longer computed during render (the page is prerendered at BUILD time, so the date was the build date
+   and differed from the browser's). It now starts empty and is set to today in a useEffect.
+✅ Phone overflow fixed: URL/LinkedIn rows (input min-width:0 + width:100%, prefix flex-shrink:0) and the review screen
+   (rows switch from a 260px label column to stacked label-on-top under 640px).
+✅ main did not build: app/api/session/[id]/route.ts still imported the deleted lib/supabase. It is now a 410 stub
+   (nothing in the UI calls it).
+✅ /api/research and /api/chat imported callAnthropic / extractText / extractJsonObject that lib/anthropic.ts never
+   exported (would throw at runtime on the next deploy); /api/save-progress imported a missing sendEmail. Added them.
+✅ Verified locally: npm run build clean (no warnings), next start, Playwright 1366 + 390 on the intake screen and the
+   review screen: 0 console errors, 0 failed requests, no horizontal scroll.
+
+PENDING ❌
+❌ No package-lock.json in the repo for now (see the 2026-10-23 section): Cloudflare installs with npm install.
+   Ariel: regenerate it on a machine that can push files >250 KB (npm install --package-lock-only, Node 20.11.1).
+❌ The live site still shows "BUILD 2026-07-03": nothing after early July has been deployed (main was not buildable).
+   After merging, Charles must trigger a deploy on whichever host serves the site and confirm the env vars above.
+❌ Research/chat need a live end-to-end test with the real ANTHROPIC_API_KEY after deploy (not possible offline).
+❌ lib/email.ts footer still says "stored in Supabase" (now Airtable) — cosmetic, internal email only.
+❌ Repo clutter: "files (1).zip" and form_gershoncrm_setup_for_charles.md at the root.
+
+NEXT ACTION
+Merge PR -> deploy -> open form.gershoncrm.com: header must read "v0.2.0 · BUILD 2026-10-…",
+DevTools console must be clean, then run one real research on a test URL.
+
+2026-10-23 nightly (Cloudflare build fix)
+✅ Cloudflare Pages builds of this PR failed at the install step. Two causes:
+   1. package-lock.json was the old 0.1.0 app's lockfile (Supabase, next 14.1.0), so `npm ci` refused to run.
+   2. @cloudflare/next-on-pages "^1.13.5" now resolves to 1.13.16, which requires next >= 14.3; this app uses next 14.2.15,
+      so even `npm install` stopped with ERESOLVE.
+   Fix: package.json pins @cloudflare/next-on-pages to 1.13.15 (last version that accepts next 14.2), and the stale
+   lockfile is removed. A fresh lockfile is 374 KB, too large for the upload tool, so it is not committed yet.
+✅ Verified locally with Node 20.11.1 / npm 10.2.4: no-lockfile `npm install` + `npx @cloudflare/next-on-pages` builds
+   (5 edge routes, prerendered /); with a freshly generated lockfile `npm ci && npm run build` also passes.
+❌ Commit a regenerated package-lock.json (see PENDING).
