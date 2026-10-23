@@ -34,9 +34,8 @@ DONE ✅ (2026-10-22, PR nightly/2026-10-22-form-hydration)
    review screen: 0 console errors, 0 failed requests, no horizontal scroll.
 
 PENDING ❌
-❌ package-lock.json is out of sync with package.json (npm ci fails: missing ansi-regex@6.4.0; and
-   @cloudflare/next-on-pages@1.13.16 wants next >= 14.3). Local build used `npm install --legacy-peer-deps`.
-   Regenerate the lockfile (Ariel) or pin @cloudflare/next-on-pages to a version that accepts next 14.2.
+❌ No package-lock.json in the repo for now (see the 2026-10-23 section): Cloudflare installs with npm install.
+   Ariel: regenerate it on a machine that can push files >250 KB (npm install --package-lock-only, Node 20.11.1).
 ❌ The live site still shows "BUILD 2026-07-03": nothing after early July has been deployed (main was not buildable).
    After merging, Charles must trigger a deploy on whichever host serves the site and confirm the env vars above.
 ❌ Research/chat need a live end-to-end test with the real ANTHROPIC_API_KEY after deploy (not possible offline).
@@ -46,3 +45,14 @@ PENDING ❌
 NEXT ACTION
 Merge PR -> deploy -> open form.gershoncrm.com: header must read "v0.2.0 · BUILD 2026-10-…",
 DevTools console must be clean, then run one real research on a test URL.
+
+2026-10-23 nightly (Cloudflare build fix)
+✅ Cloudflare Pages builds of this PR failed at the install step. Two causes:
+   1. package-lock.json was the old 0.1.0 app's lockfile (Supabase, next 14.1.0), so `npm ci` refused to run.
+   2. @cloudflare/next-on-pages "^1.13.5" now resolves to 1.13.16, which requires next >= 14.3; this app uses next 14.2.15,
+      so even `npm install` stopped with ERESOLVE.
+   Fix: package.json pins @cloudflare/next-on-pages to 1.13.15 (last version that accepts next 14.2), and the stale
+   lockfile is removed. A fresh lockfile is 374 KB, too large for the upload tool, so it is not committed yet.
+✅ Verified locally with Node 20.11.1 / npm 10.2.4: no-lockfile `npm install` + `npx @cloudflare/next-on-pages` builds
+   (5 edge routes, prerendered /); with a freshly generated lockfile `npm ci && npm run build` also passes.
+❌ Commit a regenerated package-lock.json (see PENDING).
