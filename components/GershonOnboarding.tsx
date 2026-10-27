@@ -10,7 +10,7 @@ import { Check, CircleDot, Circle, Send, Sparkles, ArrowRight, Download, AlertCi
 
 const BRAND = {
   red: '#CC3333',
-  redDark: '#A82828',
+  redDark: '#A8281F',
   redLight: '#F5E0E0',
   charcoal: '#2a2a2a',
   charcoalLight: '#3d3d3d',
