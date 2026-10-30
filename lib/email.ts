@@ -114,3 +114,24 @@ export async function sendIntakeNotification(args: IntakeArgs): Promise<void> {
     throw new Error(`Resend API ${res.status}: ${errText}`);
   }
 }
+
+// Generic Resend send, used by app/api/save-progress (added 2026-10-22: the route
+// imported `sendEmail` but it was never exported, so the build warned and the
+// route threw at runtime). Same env vars as sendIntakeNotification.
+export async function sendEmail(args: { to: string | string[]; subject: string; html: string; text?: string }): Promise<void> {
+  const apiKey =
+    typeof process !== "undefined" ? process.env.RESEND_API_KEY : undefined;
+  if (!apiKey) throw new Error("RESEND_API_KEY not set");
+  const from =
+    (typeof process !== "undefined" && process.env.GERSHON_NOTIFY_FROM) ||
+    "Onboarding <onboarding@form.gershoncrm.com>";
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: Array.isArray(args.to) ? args.to : [args.to], subject: args.subject, html: args.html, text: args.text }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Resend API ${res.status}: ${errText}`);
+  }
+}
