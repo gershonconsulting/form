@@ -16,13 +16,13 @@ export async function POST(req: NextRequest) {
   if (!email || !resumeUrl) {
     return NextResponse.json({ error: 'email and resumeUrl required' }, { status: 400 });
   }
-  if (!/^https?:\/\/form\.gershoncrm\.com/.test(resumeUrl)) {
+  if (!/^https?:\/\/(form\.gershoncrm\.com|welcome\.gershon\.ai)/.test(resumeUrl)) {
     return NextResponse.json({ error: 'invalid resumeUrl host' }, { status: 400 });
   }
 
   const safeName = firstName.replace(/[<>]/g, '');
   const safeCompany = companyName.replace(/[<>]/g, '');
-  const subject = `Resume your Gershon onboarding — ${safeCompany}`;
+  const subject = `Resume your Gershon Welcome intake — ${safeCompany}`;
   const html = `<p>Hello ${safeName},</p>
 <p>Your progress has been saved. When you're ready to continue, open the link below and we'll pick up right where you left off:</p>
 <p><a href="${resumeUrl}">${resumeUrl}</a></p>
