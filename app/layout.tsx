@@ -2,8 +2,17 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Gershon Consulting — Client Onboarding',
-  description: 'Complete your onboarding intake for Gershon Consulting.',
+  metadataBase: new URL('https://welcome.gershon.ai'),
+  title: 'Gershon Welcome',
+  description: 'Welcome to Gershon Consulting — complete your client intake.',
+  applicationName: 'Gershon Welcome',
+  alternates: { canonical: 'https://welcome.gershon.ai/' },
+  openGraph: {
+    title: 'Gershon Welcome',
+    description: 'Welcome to Gershon Consulting — complete your client intake.',
+    url: 'https://welcome.gershon.ai/',
+    siteName: 'Gershon Welcome',
+  },
 };
 
 export const viewport: Viewport = {

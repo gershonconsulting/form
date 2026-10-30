@@ -1,8 +1,8 @@
-form.gershoncrm.com — HANDOFF (updated 2026-10-22, v0.2.0, branch nightly/2026-10-22-form-hydration)
+Gershon Welcome (welcome.gershon.ai, was form.gershoncrm.com) — HANDOFF (updated 2026-10-30, v0.3.0, branch nightly/2026-10-30-welcome-rename)
 ==========================================
 
 WHAT IT IS
-"Onboarding AI Form": a client types their website (+ optional LinkedIn) -> /api/research (Anthropic Messages API + web
+"Gershon Welcome" (formerly "Onboarding AI Form"; renamed by Olivier 2026-10-29): a client types their website (+ optional LinkedIn) -> /api/research (Anthropic Messages API + web
 search) pre-fills the intake -> client reviews every field, uploads the validated quote, signs -> /api/submit stores the
 row (+ quote file attachment) in Airtable and emails a notification through Resend.
 Single page: app/page.tsx -> components/GershonOnboarding.tsx (all UI). API routes in app/api/*. Helpers in lib/*.
@@ -15,7 +15,14 @@ STACK / DEPLOY
   No branch previews.
 - Env (set in Cloudflare, never in the repo): ANTHROPIC_API_KEY, AIRTABLE_* (see .env.example), RESEND_API_KEY,
   GERSHON_NOTIFY_TO, GERSHON_NOTIFY_FROM.
-- Visible version: header shows "v0.2.0 · BUILD <build time>" (APP_VERSION in GershonOnboarding.tsx + package.json).
+- Visible version: header shows "v0.3.0 · BUILD <build time>" (APP_VERSION in GershonOnboarding.tsx + package.json).
+
+DONE ✅ (2026-10-30, PR nightly/2026-10-30-welcome-rename)
+- Renamed visible titles to "Welcome": <title>/meta "Gershon Welcome", canonical + OpenGraph url https://welcome.gershon.ai/,
+  header "Welcome", intro kicker, summary doc title/brand/footer, resume-email subject. /api/save-progress now
+  accepts resume links on welcome.gershon.ai as well as form.gershoncrm.com. v0.3.0. Verified: npm run build OK.
+- NOT done (needs Charles/Olivier): DNS/route for welcome.gershon.ai, notification email footer + GERSHON_NOTIFY_FROM (still
+  @form.gershoncrm.com; see PR #5 for the GC display name), component/file names left as GershonOnboarding.
 
 DONE ✅ (2026-10-22, PR nightly/2026-10-22-form-hydration)
 ✅ React hydration errors #418/#423/#425 fixed: the big inline <style>{`...`}</style> is now
@@ -43,7 +50,8 @@ PENDING ❌
 ❌ Repo clutter: "files (1).zip" and form_gershoncrm_setup_for_charles.md at the root.
 
 NEXT ACTION
-Merge PR -> deploy -> open form.gershoncrm.com: header must read "v0.2.0 · BUILD 2026-10-…",
+Merge #4 then this PR -> deploy -> point welcome.gershon.ai at the same host (keep form.gershoncrm.com working) ->
+open it: tab title "Gershon Welcome", header "Welcome" and "v0.3.0 · BUILD 2026-10-…",
 DevTools console must be clean, then run one real research on a test URL.
 
 2026-10-23 nightly (Cloudflare build fix)
