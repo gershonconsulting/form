@@ -56,3 +56,28 @@ DevTools console must be clean, then run one real research on a test URL.
 ✅ Verified locally with Node 20.11.1 / npm 10.2.4: no-lockfile `npm install` + `npx @cloudflare/next-on-pages` builds
    (5 edge routes, prerendered /); with a freshly generated lockfile `npm ci && npm run build` also passes.
 ❌ Commit a regenerated package-lock.json (see PENDING).
+
+2026-10-27 nightly (token-limit handoff protocol section)
+----------------------------------------------------------------
+FOR ANOTHER AI TAKING OVER (ChatGPT, Gemini, Copilot, another Claude session):
+Read the MASTER HANDOFF first: github.com/gershonconsulting/memory -> HANDOFF.txt
+(full operating rules, technical defaults, index of all repos).
+
+CRITICAL OPERATING RULES - do not break these:
+  * Olivier does NOT use a terminal, CLI, git or PowerShell. NEVER give him commands, scripts, .bat files
+    or 'just run this' steps.
+  * He does NOT upload, download, move or save files. If a file has to get somewhere, YOU find the route.
+  * End every actionable reply with:
+      GREEN CHECK = ready for him to test (+ the link)
+      RED CROSS   = something still to do (+ exactly 3 options he can actually action - never a CLI step)
+  * Executors: Ariel = code and repo work. Charles = Chrome extension and web admin panels
+    (Cloudflare, GitHub settings, DNS, publishing).
+
+EXTRA NOTES
+- DNS: Tierra.net registrar; Cloudflare for CDN/DNS/SSL. Secret values live in 1Password (names listed above,
+  plus AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_TABLE, NODE_VERSION).
+- Notification sender default becomes "GC Onboarding" once form #5 merges; also check GERSHON_NOTIFY_FROM in the host.
+- README still describes Vercel + Supabase; vercel.json is still in the repo. Verify the live host before changing hosting.
+- API keys are server-side only; never prefix with NEXT_PUBLIC_.
+- The email step is optional: without RESEND_API_KEY the app skips it.
+- No tests. CI = Cloudflare Pages build check on each PR.
