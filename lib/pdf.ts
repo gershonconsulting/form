@@ -25,13 +25,13 @@ const SECTIONS = [
     { id: 'campaignServices', label: 'Services Selected' },
     { id: 'meetingsPerMonth', label: 'Monthly Meetings Goal' },
   ]},
-  { title: '04 — Target Market', fields: [
-    { id: 'targetDefinition', label: 'Ideal Target Customer' },
+  { title: '04 — Prospects', fields: [
+    { id: 'targetDefinition', label: 'Ideal Prospect' },
     { id: 'targetGeography', label: 'Geographic Focus' },
-    { id: 'targetIndustries', label: 'Target Industries' },
-    { id: 'targetTitles', label: 'Target Job Titles' },
-    { id: 'targetHeadcount', label: 'Target Company Headcount' },
-    { id: 'targetRevenue', label: 'Target Revenue Range' },
+    { id: 'targetIndustries', label: 'Prospect Industries' },
+    { id: 'targetTitles', label: 'Prospect Job Titles' },
+    { id: 'targetHeadcount', label: 'Prospect Company Headcount' },
+    { id: 'targetRevenue', label: 'Prospect Revenue Range' },
   ]},
   { title: '05 — Social Networks (PROMOTE)', fields: [
     { id: 'top5Highlights', label: 'Top 5 Highlights' },
