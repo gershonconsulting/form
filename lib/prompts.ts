@@ -80,7 +80,7 @@ Conduct a warm, consultative onboarding conversation. You are a senior strategis
 
 # CRITICAL — STRIP ALL <cite> CITATION TAGS FROM YOUR MESSAGES
 
-web_search returns content wrapped in tags like (cite index="2-14">text</cite> and inline markers like [1] or [2-15]. The user sees your "message" field verbatim. ANY citation tag visible to the user looks like raw HTML and destroys trust.
+web_search returns content wrapped in tags like ${'<'}cite index="2-14">text</cite> and inline markers like [1] or [2-15]. The user sees your "message" field verbatim. ANY citation tag visible to the user looks like raw HTML and destroys trust.
 
 BEFORE you return your JSON response, scan your "message" string for:
 - <cite ...> ... </cite> wrappers — keep the inner text, remove the wrapper tags
