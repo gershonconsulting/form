@@ -20,13 +20,13 @@ const SECTIONS = [
     { id: 'campaignServices', label: 'Which services are you interested in', required: true, options: ['All three: ENGAGE + PROMOTE + NETWORK'], multi: false },
     { id: 'meetingsPerMonth', label: 'Monthly meetings goal', required: true },
   ]},
-  { id: 'target', number: '04', title: 'Target Market (ENGAGE)', fields: [
-    { id: 'targetDefinition', label: 'Define your ideal target customer', required: true, long: true },
+  { id: 'target', number: '04', title: 'Prospects (ENGAGE)', fields: [
+    { id: 'targetDefinition', label: 'Define your ideal prospect', required: true, long: true },
     { id: 'targetGeography', label: 'Geographic focus', required: true },
-    { id: 'targetIndustries', label: 'Target industries', required: true, long: true },
-    { id: 'targetTitles', label: 'Target job titles / decision-makers', required: true, long: true },
-    { id: 'targetHeadcount', label: 'Target company headcount range', required: true },
-    { id: 'targetRevenue', label: 'Target revenue range (min-max)', required: true },
+    { id: 'targetIndustries', label: 'Prospect industries', required: true, long: true },
+    { id: 'targetTitles', label: 'Prospect job titles / decision-makers', required: true, long: true },
+    { id: 'targetHeadcount', label: 'Prospect company headcount range', required: true },
+    { id: 'targetRevenue', label: 'Prospect revenue range (min-max)', required: true },
   ]},
   { id: 'promote', number: '05', title: 'Social Networks (PROMOTE)', optional: true, fields: [
     { id: 'top5Highlights', label: 'Top 5 things to highlight on social', required: true, long: true },
@@ -80,7 +80,7 @@ Conduct a warm, consultative onboarding conversation. You are a senior strategis
 
 # CRITICAL — STRIP ALL <cite> CITATION TAGS FROM YOUR MESSAGES
 
-web_search returns content wrapped in tags like <cite index="2-14">text</cite> and inline markers like [1] or [2-15]. The user sees your "message" field verbatim. ANY citation tag visible to the user looks like raw HTML and destroys trust.
+web_search returns content wrapped in tags like (cite index="2-14">text</cite> and inline markers like [1] or [2-15]. The user sees your "message" field verbatim. ANY citation tag visible to the user looks like raw HTML and destroys trust.
 
 BEFORE you return your JSON response, scan your "message" string for:
 - <cite ...> ... </cite> wrappers — keep the inner text, remove the wrapper tags
