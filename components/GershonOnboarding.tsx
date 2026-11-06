@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.2.0';
+const APP_VERSION = 'v0.2.1';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -71,16 +71,16 @@ const SECTIONS = [
   {
     id: 'target',
     number: '04',
-    title: 'Target Market',
+    title: 'Prospects',
     fields: [
-      { id: 'targetDefinition', label: 'Target prospect definition', required: true, long: true },
-      { id: 'targetLocations', label: 'Target locations', required: true },
-      { id: 'targetIndustries', label: 'Target industries', required: true },
-      { id: 'targetTitles', label: 'Target job titles (ICP)', required: true },
+      { id: 'targetDefinition', label: 'Prospect definition', required: true, long: true },
+      { id: 'targetLocations', label: 'Prospect locations', required: true },
+      { id: 'targetIndustries', label: 'Prospect industries', required: true },
+      { id: 'targetTitles', label: 'Prospect job titles (ICP)', required: true },
       { id: 'initialTemplate', label: 'What you use today to pitch new prospects', required: true, long: true },
       { id: 'idealLinkedInLeads', label: '5 LinkedIn links of ideal leads', required: true, long: true },
-      { id: 'targetHeadcount', label: 'Target headcount range (min–max)', required: true },
-      { id: 'targetRevenue', label: 'Target revenue range (min–max)', required: true },
+      { id: 'targetHeadcount', label: 'Prospect headcount range (min–max)', required: true },
+      { id: 'targetRevenue', label: 'Prospect revenue range (min–max)', required: true },
     ],
   },
   {
@@ -912,7 +912,7 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
           We do the homework. <span style={{ fontStyle: 'italic', color: BRAND.red }}>You just review.</span>
         </h1>
         <p style={{ fontSize: 17, lineHeight: 1.6, color: BRAND.charcoalLight, marginTop: 28 }}>
-          Drop your company URL (and optionally your LinkedIn profile). We'll research your business, your positioning, and your likely target market — then hand you a fully pre-filled intake. Edit anything that's off, sign at the bottom, done.
+          Drop your company URL (and optionally your LinkedIn profile). We'll research your business, your positioning, and your likely prospects — then hand you a fully pre-filled intake. Edit anything that's off, sign at the bottom, done.
         </p>
 
         <div style={{ marginTop: 40 }}>
@@ -1020,7 +1020,7 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
             {[
               { num: '02', title: 'Your Business', bullets: ['Business type', 'Industry', 'Product/service links'] },
-              { num: '04', title: 'Target Market', bullets: ['Likely ICP', 'Industries', 'Job titles'] },
+              { num: '04', title: 'Prospects', bullets: ['Likely ICP', 'Industries', 'Job titles'] },
               { num: '05', title: 'Social Highlights', bullets: ['Top 5 differentiators', 'Google keywords'] },
               { num: '06', title: 'Competition', bullets: ['Top 5 competitors', 'Competitor Twitter handles'] },
             ].map(item => (
