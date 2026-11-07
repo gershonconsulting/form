@@ -4,7 +4,12 @@ interface FormResponses {
   [key: string]: string | string[] | undefined;
 }
 
-const SECTIONS = [
+// `id` is the field id used by the form (components/GershonOnboarding.tsx).
+// `fallback` is an older/alternate id still produced by the chat assistant
+// (lib/prompts.ts) or by submissions saved before the rename.
+interface PdfField { id: string; label: string; fallback?: string }
+
+const SECTIONS: { title: string; fields: PdfField[] }[] = [
   { title: '01 — About You', fields: [
     { id: 'companyName', label: 'Company Name' },
     { id: 'firstName', label: 'First Name' },
@@ -22,16 +27,16 @@ const SECTIONS = [
   ]},
   { title: '03 — Campaign Scope', fields: [
     { id: 'campaignDuration', label: 'Campaign Duration' },
-    { id: 'campaignServices', label: 'Services Selected' },
+    { id: 'services', fallback: 'campaignServices', label: 'Services Selected' },
     { id: 'meetingsPerMonth', label: 'Monthly Meetings Goal' },
   ]},
-  { title: '04 — Target Market', fields: [
-    { id: 'targetDefinition', label: 'Ideal Target Customer' },
-    { id: 'targetGeography', label: 'Geographic Focus' },
-    { id: 'targetIndustries', label: 'Target Industries' },
-    { id: 'targetTitles', label: 'Target Job Titles' },
-    { id: 'targetHeadcount', label: 'Target Company Headcount' },
-    { id: 'targetRevenue', label: 'Target Revenue Range' },
+  { title: '04 — Prospects', fields: [
+    { id: 'targetDefinition', label: 'Ideal Prospect' },
+    { id: 'targetLocations', fallback: 'targetGeography', label: 'Prospect Locations' },
+    { id: 'targetIndustries', label: 'Prospect Industries' },
+    { id: 'targetTitles', label: 'Prospect Job Titles' },
+    { id: 'targetHeadcount', label: 'Prospect Company Headcount' },
+    { id: 'targetRevenue', label: 'Prospect Revenue Range' },
   ]},
   { title: '05 — Social Networks (PROMOTE)', fields: [
     { id: 'top5Highlights', label: 'Top 5 Highlights' },
@@ -53,8 +58,9 @@ const SECTIONS = [
   ]},
 ];
 
-function getValue(responses: FormResponses, id: string): string {
-  const val = responses[id];
+function getValue(responses: FormResponses, id: string, fallback?: string): string {
+  const primary = responses[id];
+  const val = primary && primary.length ? primary : (fallback ? responses[fallback] : undefined);
   if (!val) return '—';
   if (Array.isArray(val)) return val.join(', ');
   return String(val);
@@ -142,7 +148,7 @@ export async function generateOnboardingPDF(responses: FormResponses): Promise<U
   // ─── Sections ─────────────────────────────────────────────────────
   for (const section of SECTIONS) {
     // Check if any field in section has data
-    const hasData = section.fields.some(f => responses[f.id] && responses[f.id] !== '');
+    const hasData = section.fields.some(f => getValue(responses, f.id, f.fallback) !== '—');
     if (!hasData) continue;
 
     checkNewPage(40);
@@ -153,7 +159,7 @@ export async function generateOnboardingPDF(responses: FormResponses): Promise<U
     y -= 30;
 
     for (const field of section.fields) {
-      const value = getValue(responses, field.id);
+      const value = getValue(responses, field.id, field.fallback);
       if (value === '—' && !['companyName', 'firstName', 'email'].includes(field.id)) continue;
 
       checkNewPage(30);
