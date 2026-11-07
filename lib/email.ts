@@ -7,7 +7,7 @@
 // Required env vars (set in Cloudflare Pages → Settings → Environment variables):
 //   RESEND_API_KEY      — e.g. re_xxx...
 //   GERSHON_NOTIFY_TO   — comma-separated recipients (defaults to "olivier@gershon.ai")
-//   GERSHON_NOTIFY_FROM — sender, e.g. "Onboarding <onboarding@form.gershoncrm.com>"
+//   GERSHON_NOTIFY_FROM — sender, e.g. "GC Onboarding <onboarding@form.gershoncrm.com>"
 //                        (the from-domain must be verified in Resend)
 
 type Signature = { name: string; date: string };
@@ -95,7 +95,7 @@ export async function sendIntakeNotification(args: IntakeArgs): Promise<void> {
     .filter(Boolean);
   const from =
     (typeof process !== "undefined" && process.env.GERSHON_NOTIFY_FROM) ||
-    "Onboarding <onboarding@form.gershoncrm.com>";
+    "GC Onboarding <onboarding@form.gershoncrm.com>";
 
   const { html, text } = renderBody(args);
   const subject = `Onboarding signed · ${args.responses.companyName || "Unknown"}`;
