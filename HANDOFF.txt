@@ -56,3 +56,5 @@ DevTools console must be clean, then run one real research on a test URL.
 ✅ Verified locally with Node 20.11.1 / npm 10.2.4: no-lockfile `npm install` + `npx @cloudflare/next-on-pages` builds
    (5 edge routes, prerendered /); with a freshly generated lockfile `npm ci && npm run build` also passes.
 ❌ Commit a regenerated package-lock.json (see PENDING).
+
+2026-11-06 nightly: "Target(s)" wording -> "Prospect(s)" in the visible form text (section 04 + labels), v0.2.1 ✅ ready to test on preview (PR #9)
