@@ -77,7 +77,7 @@ export async function generateOnboardingPDF(responses: FormResponses): Promise<U
   const contentWidth = pageWidth - margin * 2;
 
   const colors = {
-    navy: rgb(0.05, 0.1, 0.3),
+    navy: rgb(0.996, 0.106, 0.016), // brand red #FE1B04 (was navy)
     gold: rgb(0.8, 0.6, 0.1),
     gray: rgb(0.5, 0.5, 0.5),
     lightGray: rgb(0.95, 0.95, 0.95),
@@ -129,7 +129,7 @@ export async function generateOnboardingPDF(responses: FormResponses): Promise<U
     return yPos - currentY; // return height used
   };
 
-  // ─── Cover / Header ───────────────────────────────────────────────
+  // ─── Cover / Header ─────────────────────────────────────────────────────────────────
   page.drawRectangle({ x: 0, y: pageHeight - 100, width: pageWidth, height: 100, color: colors.navy });
   page.drawText('GERSHON CONSULTING', { x: margin, y: pageHeight - 45, size: 18, font: boldFont, color: colors.white });
   page.drawText('Onboarding Summary', { x: margin, y: pageHeight - 68, size: 12, font: regularFont, color: colors.gold });
@@ -145,7 +145,7 @@ export async function generateOnboardingPDF(responses: FormResponses): Promise<U
   page.drawText(`Submitted: ${date}`, { x: margin, y, size: 9, font: regularFont, color: colors.gray });
   y -= 25;
 
-  // ─── Sections ─────────────────────────────────────────────────────
+  // ─── Sections ───────────────────────────────────────────────────────────────────
   for (const section of SECTIONS) {
     // Check if any field in section has data
     const hasData = section.fields.some(f => getValue(responses, f.id, f.fallback) !== '—');
@@ -180,7 +180,7 @@ export async function generateOnboardingPDF(responses: FormResponses): Promise<U
     y -= 10;
   }
 
-  // ─── Footer on all pages ──────────────────────────────────────────
+  // ─── Footer on all pages ────────────────────────────────────────────────────────────────
   const pages = pdfDoc.getPages();
   pages.forEach((pg, i) => {
     pg.drawText(`Page ${i + 1} of ${pages.length}  |  Confidential — Gershon Consulting`, {

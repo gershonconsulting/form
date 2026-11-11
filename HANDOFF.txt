@@ -17,6 +17,8 @@ STACK / DEPLOY
   GERSHON_NOTIFY_TO, GERSHON_NOTIFY_FROM.
 - Visible version: header shows "v0.2.0 · BUILD <build time>" (APP_VERSION in GershonOnboarding.tsx + package.json).
 
+✅ 2026-11-11 brand red #FE1B04 (nightly) — ready to test after merge. v0.2.2: BRAND red #FE1B04 / dark #d11200 / tint #fff5f5 (was #CC3333 / #A8281F / #F5E0E0) in the form UI, print view and notification email; PDF header was navy, now brand red. Note: PR #8 (v0.3.0 rename) touches the same files/version - expect a small merge conflict.
+
 DONE ✅ (2026-10-22, PR nightly/2026-10-22-form-hydration)
 ✅ React hydration errors #418/#423/#425 fixed: the big inline <style>{`...`}</style> is now
    <style dangerouslySetInnerHTML={{__html: ...}} /> (SSR used to escape ' to &#x27;, breaking the CSS and the font URL).
