@@ -59,16 +59,16 @@ function renderBody(args: IntakeArgs): { html: string; text: string } {
   ].join("\n");
 
   const html = `<!doctype html><html><body style="font-family:-apple-system,Inter,sans-serif;color:#1a1a1a;max-width:680px;margin:0 auto;padding:24px">
-    <div style="border-bottom:3px solid #CC3333;padding-bottom:14px;margin-bottom:20px">
+    <div style="border-bottom:3px solid #FE1B04;padding-bottom:14px;margin-bottom:20px">
       <div style="font-family:Menlo,monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#888">Gershon Consulting · Onboarding</div>
-      <h2 style="margin:6px 0 0;font-weight:500;font-family:Georgia,serif">New intake from <em style="color:#CC3333">${escapeHtml(company)}</em></h2>
+      <h2 style="margin:6px 0 0;font-weight:500;font-family:Georgia,serif">New intake from <em style="color:#FE1B04">${escapeHtml(company)}</em></h2>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px">
       <tr><td style="color:#888;width:30%">Signed by</td><td><strong>${escapeHtml(signature.name)}</strong> on ${escapeHtml(signature.date)}</td></tr>
       <tr><td style="color:#888">Terms accepted</td><td>${termsAccepted ? "Yes" : "No"}</td></tr>
       <tr><td style="color:#888">Receipt ID</td><td style="font-family:Menlo,monospace;font-size:11px">${escapeHtml(receiptId)}</td></tr>
     </table>
-    <div style="font-family:Menlo,monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#CC3333;margin:18px 0 8px">Captured responses</div>
+    <div style="font-family:Menlo,monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#FE1B04;margin:18px 0 8px">Captured responses</div>
     <table style="width:100%;border-collapse:collapse">${rows}</table>
     <div style="margin-top:24px;padding-top:14px;border-top:1px solid #eee;font-family:Menlo,monospace;font-size:10px;color:#888;letter-spacing:.1em;text-transform:uppercase">form.gershoncrm.com · stored in Supabase</div>
   </body></html>`;

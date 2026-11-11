@@ -9,9 +9,9 @@ import { Check, CircleDot, Circle, Send, Sparkles, ArrowRight, Download, AlertCi
 // ============================================================================
 
 const BRAND = {
-  red: '#CC3333',
-  redDark: '#A8281F',
-  redLight: '#F5E0E0',
+  red: '#FE1B04',
+  redDark: '#d11200',
+  redLight: '#fff5f5',
   charcoal: '#2a2a2a',
   charcoalLight: '#3d3d3d',
   cream: '#FAF8F5',
@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.2.1';
+const APP_VERSION = 'v0.2.2';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -636,38 +636,38 @@ export default function GershonOnboarding() {
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
   body { font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; margin: 0; padding: 32px; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .head { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 3px solid #CC3333; padding-bottom: 16px; margin-bottom: 24px; }
+  .head { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 3px solid #FE1B04; padding-bottom: 16px; margin-bottom: 24px; }
   .brand { display: flex; align-items: center; gap: 12px; }
-  .brand-mark { width: 36px; height: 36px; background: #CC3333; color: #fff; font-weight: 700; font-style: italic; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .brand-mark { width: 36px; height: 36px; background: #FE1B04; color: #fff; font-weight: 700; font-style: italic; display: flex; align-items: center; justify-content: center; font-size: 22px; }
   .brand-name { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #8A857E; font-family: 'SF Mono', Menlo, monospace; }
   .brand-title { font-size: 19px; font-weight: 500; color: #1A1A1A; margin-top: 2px; }
   .meta { text-align: right; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #8A857E; font-family: 'SF Mono', Menlo, monospace; line-height: 1.7; }
   .meta strong { color: #1A1A1A; font-weight: 500; }
   h1 { font-size: 32px; font-weight: 400; margin: 0 0 4px; letter-spacing: -0.02em; }
-  h1 em { color: #CC3333; }
+  h1 em { color: #FE1B04; }
   .lead { font-size: 12px; color: #555; margin: 8px 0 28px; }
   .sec { margin-bottom: 22px; page-break-inside: avoid; }
-  .sec-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1.5px solid #CC3333; padding-bottom: 6px; margin-bottom: 10px; }
-  .sec-num { font-family: 'SF Mono', Menlo, monospace; font-size: 10px; letter-spacing: 0.2em; color: #CC3333; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1.5px solid #FE1B04; padding-bottom: 6px; margin-bottom: 10px; }
+  .sec-num { font-family: 'SF Mono', Menlo, monospace; font-size: 10px; letter-spacing: 0.2em; color: #FE1B04; }
   .sec-title { font-size: 17px; font-weight: 500; }
   table.kv { width: 100%; border-collapse: collapse; }
   table.kv td { padding: 7px 0; border-bottom: 1px solid #EEEAE3; vertical-align: top; font-size: 11.5px; line-height: 1.5; }
   table.kv td.lbl { width: 38%; font-family: 'SF Mono', Menlo, monospace; font-size: 9.5px; color: #8A857E; letterspacing: 0.06em; text-transform: uppercase; padding-right: 16px; padding-top: 9px; }
   table.kv td.val { color: #1A1A1A; }
-  .ack { margin-top: 26px; padding: 18px 22px; border: 1px solid #CC3333; background: #FAF8F5; page-break-inside: avoid; }
+  .ack { margin-top: 26px; padding: 18px 22px; border: 1px solid #FE1B04; background: #FAF8F5; page-break-inside: avoid; }
   .ack h2 { font-size: 14px; margin: 0 0 12px; font-weight: 600; letter-spacing: 0.04em; }
   .ack ul { list-style: none; padding: 0; margin: 0; }
   .ack li { padding: 6px 0; font-size: 11.5px; line-height: 1.5; display: flex; gap: 10px; align-items: flex-start; }
-  .ack-mark { display: inline-block; width: 16px; height: 16px; border-radius: 2px; background: #CC3333; color: #fff; font-size: 11px; text-align: center; line-height: 16px; flex-shrink: 0; }
+  .ack-mark { display: inline-block; width: 16px; height: 16px; border-radius: 2px; background: #FE1B04; color: #fff; font-size: 11px; text-align: center; line-height: 16px; flex-shrink: 0; }
   .ack-no .ack-mark { background: #DDD; color: #999; }
   .sig { margin-top: 24px; padding: 22px 24px; background: #1A1A1A; color: #fff; page-break-inside: avoid; }
   .sig-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: end; }
   .sig-label { font-family: 'SF Mono', Menlo, monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: #999; margin-bottom: 6px; }
-  .sig-name { font-style: italic; font-size: 26px; border-bottom: 2px solid #CC3333; padding-bottom: 4px; }
-  .sig-date { font-family: 'SF Mono', Menlo, monospace; font-size: 14px; border-bottom: 2px solid #CC3333; padding-bottom: 6px; }
+  .sig-name { font-style: italic; font-size: 26px; border-bottom: 2px solid #FE1B04; padding-bottom: 4px; }
+  .sig-date { font-family: 'SF Mono', Menlo, monospace; font-size: 14px; border-bottom: 2px solid #FE1B04; padding-bottom: 6px; }
   .sig-foot { margin-top: 16px; font-family: 'SF Mono', Menlo, monospace; font-size: 9px; letter-spacing: 0.1em; color: #999; text-transform: uppercase; }
   .foot { margin-top: 28px; padding-top: 14px; border-top: 1px solid #EEEAE3; font-family: 'SF Mono', Menlo, monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: #8A857E; text-align: center; }
-  .print-bar { position: fixed; top: 12px; right: 12px; background: #CC3333; color: #fff; padding: 10px 18px; font-family: Inter, sans-serif; font-size: 13px; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .print-bar { position: fixed; top: 12px; right: 12px; background: #FE1B04; color: #fff; padding: 10px 18px; font-family: Inter, sans-serif; font-size: 13px; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
   @media print { .print-bar { display: none; } body { padding: 0; } }
 </style>
 </head>
@@ -699,7 +699,7 @@ export default function GershonOnboarding() {
   </div>
 
   <div class="sig">
-    <div style="font-family:'SF Mono',Menlo,monospace; font-size:10px; letter-spacing:0.2em; color:#CC3333; text-transform:uppercase;">— Section 10 · Signature</div>
+    <div style="font-family:'SF Mono',Menlo,monospace; font-size:10px; letter-spacing:0.2em; color:#FE1B04; text-transform:uppercase;">— Section 10 · Signature</div>
     <div style="font-size:18px; margin: 6px 0 18px; font-weight: 500;">Terms of Service Accepted: ${termsAccepted ? 'Yes' : 'No'}</div>
     <div class="sig-grid">
       <div>
@@ -1537,7 +1537,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                     gridTemplateColumns: '260px 1fr auto',
                     gap: 20,
                     alignItems: 'flex-start',
-                    background: status === 'missing-required' ? 'rgba(204, 51, 51, 0.03)' : 'transparent',
+                    background: status === 'missing-required' ? 'rgba(254, 27, 4, 0.03)' : 'transparent',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
                       {f.required && <span style={{ width: 6, height: 6, borderRadius: '50%', background: hasValue ? BRAND.red : '#D9C8C8', display: 'inline-block', flexShrink: 0 }} title={f.required ? 'Required' : ''} />}
