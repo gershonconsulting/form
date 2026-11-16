@@ -6,9 +6,11 @@
 //
 // Required env vars (set in Cloudflare Pages → Settings → Environment variables):
 //   RESEND_API_KEY      — e.g. re_xxx...
-//   GERSHON_NOTIFY_TO   — comma-separated recipients (defaults to "olivier@gershon.ai")
+//   (recipient of completed forms is fixed: report@gershonconsulting.com)
 //   GERSHON_NOTIFY_FROM — sender, e.g. "GC Onboarding <onboarding@form.gershoncrm.com>"
 //                        (the from-domain must be verified in Resend)
+
+export const INTAKE_REPORT_TO = "report@gershonconsulting.com";
 
 type Signature = { name: string; date: string };
 
@@ -86,13 +88,9 @@ export async function sendIntakeNotification(args: IntakeArgs): Promise<void> {
     );
     return;
   }
-  const to = (
-    (typeof process !== "undefined" && process.env.GERSHON_NOTIFY_TO) ||
-    "olivier@gershon.ai"
-  )
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // Completed forms always go to report@ (Olivier, 2026-11-16). The Pages env
+  // var GERSHON_NOTIFY_TO pointed at welcome@ and is intentionally ignored here.
+  const to = [INTAKE_REPORT_TO];
   const from =
     (typeof process !== "undefined" && process.env.GERSHON_NOTIFY_FROM) ||
     "GC Onboarding <onboarding@form.gershoncrm.com>";
