@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.4.4';
+const APP_VERSION = 'v0.4.6';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -269,6 +269,54 @@ function InlineChoice({ f, value, onChange }: { f: any; value: any; onChange: (v
   return null;
 }
 const isInlineField = (f: any) => f.type === 'date' || Array.isArray(f.options);
+
+// One row of the "still missing" box: the answer can be given right there.
+// Choice/date fields commit on click; text commits on Enter, blur or "Add".
+// Once a value is committed the parent's missing list drops the row.
+function MissingItemEditor({ f, onCommit, onUpload }: { f: any; onCommit: (v: string) => void; onUpload?: () => void }) {
+  const [draft, setDraft] = useState<string>('');
+  const [otherDraft, setOtherDraft] = useState<string | null>(null);
+  const filled = (v: string) => v.replace(/^Other:\s*/i, '').trim() !== '';
+  const commitText = () => { if (filled(draft)) onCommit(draft.trim()); };
+  if (isInlineField(f)) {
+    return (
+      <div onBlur={(e) => { if (otherDraft !== null && !e.currentTarget.contains(e.relatedTarget as Node) && filled(otherDraft)) onCommit(otherDraft); }}
+        onKeyDown={(e) => { if (e.key === 'Enter' && otherDraft !== null && filled(otherDraft)) { e.preventDefault(); onCommit(otherDraft); } }}>
+        <InlineChoice f={f} value={otherDraft ?? ''} onChange={(nv) => {
+          if (/^Other:/i.test(nv)) setOtherDraft(nv);
+          else { setOtherDraft(null); if (filled(nv)) onCommit(nv); }
+        }} />
+      </div>
+    );
+  }
+  const long = Boolean(f.long) || f.id === 'competitors';
+  const inputStyle: React.CSSProperties = { flex: 1, minWidth: 0, border: `1px solid ${BRAND.rule}`, borderRadius: 8, padding: '8px 12px', fontSize: 14, background: BRAND.paper, fontFamily: 'inherit' };
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+      {long ? (
+        <textarea value={draft} rows={3} onChange={(e) => setDraft(e.target.value)} onBlur={commitText}
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitText(); } }}
+          placeholder={f.id === 'competitors' ? '1. \n2. \n3. \n4. \n5. ' : 'Type your answer…'} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }} />
+      ) : (
+        <input type={/email/i.test(f.id) ? 'email' : 'text'} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commitText}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitText(); } }}
+          placeholder="Type your answer…" style={inputStyle} />
+      )}
+      <button type="button" className="btn-primary" onMouseDown={(e) => e.preventDefault()} onClick={commitText} disabled={!filled(draft)} style={{ padding: '8px 14px', fontSize: 12 }}>Add</button>
+      {onUpload && <button type="button" className="btn-ghost" onClick={onUpload} style={{ padding: '8px 14px', fontSize: 12 }}>Upload file</button>}
+    </div>
+  );
+}
+
+function SignatureNameInput({ onCommit }: { onCommit: (v: string) => void }) {
+  const [v, setV] = useState('');
+  const commit = () => { if (v.trim().length >= 2) onCommit(v.trim()); };
+  return (
+    <input type="text" value={v} placeholder="Type your full name" onChange={(e) => setV(e.target.value)} onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
+      style={{ flex: 1, maxWidth: 320, border: `1px solid ${BRAND.rule}`, borderRadius: 8, padding: '6px 10px', fontSize: 14, background: BRAND.paper }} />
+  );
+}
 
 // Acknowledgments required before signature
 const ACKNOWLEDGMENTS = [
@@ -2055,26 +2103,54 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
         {!canSign && (missingFieldItems.length > 0 || missingOther.length > 0) && (
           <div className="missing-panel" role="status" aria-live="polite" style={{ marginTop: 16, border: `1px solid ${BRAND.red}`, borderRadius: 12, background: BRAND.redLight, padding: '16px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, color: BRAND.red, marginBottom: 10 }}>
-              <AlertCircle size={16} /> To complete the form, still missing ({missingFieldItems.length + missingOther.length}):
+              <AlertCircle size={16} /> To complete the form, still missing ({missingFieldItems.length + missingAckCount + missingOther.length - (missingAckCount > 0 ? 1 : 0)}):
             </div>
-            <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 14 }}>
               {missingFieldItems.map(f => {
                 const sec = SECTIONS.find(sx => sx.fields.some(ff => ff.id === f.id));
                 return (
-                  <li key={f.id}>
-                    <button type="button" onClick={() => scrollToField(f.id)}
+                  <li key={f.id} className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <button type="button" onClick={() => scrollToField(f.id)} title="Show this question in the form"
                       style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: BRAND.ink, fontSize: 14, textAlign: 'left', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <ArrowLeft size={14} color={BRAND.red} strokeWidth={3} />
                       <span>{sec ? `${sec.number} · ${sec.title} — ` : ''}<span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3 }}>{f.label}</span></span>
                     </button>
+                    <div style={{ paddingLeft: 22 }}>
+                      <MissingItemEditor f={f} onCommit={(nv) => setResponses(prev => ({ ...prev, [f.id]: nv }))}
+                        onUpload={f.id === 'quoteReference' ? () => quoteFileRef.current?.click() : undefined} />
+                    </div>
                   </li>
                 );
               })}
-              {missingOther.map(t => (
-                <li key={t} style={{ fontSize: 14, color: BRAND.ink, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <ArrowLeft size={14} color={BRAND.red} strokeWidth={3} /> {t}
+              {ACKNOWLEDGMENTS.filter(a => !acknowledgments[a.id]).map(a => (
+                <li key={a.id} className="fade-in">
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14, color: BRAND.ink, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={false} onChange={() => setAcknowledgments(prev => ({ ...prev, [a.id]: true }))} style={{ accentColor: BRAND.red, width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                    <span>{a.text}</span>
+                  </label>
                 </li>
               ))}
+              {!termsAccepted && (
+                <li className="fade-in">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: BRAND.ink, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={false} onChange={() => setTermsAccepted(true)} style={{ accentColor: BRAND.red, width: 16, height: 16 }} />
+                    <span>I accept the <a href="https://www.gershonconsulting.com/terms-and-conditions/" target="_blank" rel="noopener noreferrer" style={{ color: BRAND.red, textDecoration: 'underline' }}>Terms of Service</a></span>
+                  </label>
+                </li>
+              )}
+              {signatureName.trim().length < 2 && (
+                <li className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: BRAND.ink }}>
+                  <ArrowLeft size={14} color={BRAND.red} strokeWidth={3} /> Signature (full name)
+                  <SignatureNameInput onCommit={setSignatureName} />
+                </li>
+              )}
+              {!signatureDate && (
+                <li className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: BRAND.ink }}>
+                  <ArrowLeft size={14} color={BRAND.red} strokeWidth={3} /> Signature date
+                  <input type="date" onChange={(e) => e.target.value && setSignatureDate(e.target.value)}
+                    style={{ border: `1px solid ${BRAND.rule}`, borderRadius: 8, padding: '6px 10px', fontSize: 14, background: BRAND.paper }} />
+                </li>
+              )}
             </ul>
           </div>
         )}
