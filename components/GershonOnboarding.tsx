@@ -12,13 +12,13 @@ const BRAND = {
   red: '#FE1B04',
   redDark: '#d11200',
   redLight: '#fff5f5',
-  charcoal: '#2a2a2a',
-  charcoalLight: '#3d3d3d',
-  cream: '#FAF8F5',
+  charcoal: '#1D1D1F',
+  charcoalLight: '#4B4B50',
+  cream: '#F9FAFB',
   paper: '#FFFFFF',
-  rule: '#E8E4DE',
-  ink: '#1A1A1A',
-  muted: '#8A857E',
+  rule: '#E5E7EB',
+  ink: '#1D1D1F',
+  muted: '#6E6E73',
 };
 
 // Build stamp — replaced at build time. NEXT_PUBLIC_BUILD_TIME is set in next.config.js
@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.3.1';
+const APP_VERSION = 'v0.4.0';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -180,7 +180,7 @@ const isOtherOption = (o: string) => o.toLowerCase() === 'other' || o.toLowerCas
 function InlineChoice({ f, value, onChange }: { f: any; value: any; onChange: (v: string) => void }) {
   const v = value === undefined || value === null ? '' : String(value);
   const opts: string[] | undefined = f.options;
-  const box = (on: boolean) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', border: `1px solid ${on ? BRAND.red : BRAND.rule}`, background: on ? BRAND.redLight : BRAND.paper, cursor: 'pointer', fontSize: 14, fontFamily: 'Inter, sans-serif' } as React.CSSProperties);
+  const box = (on: boolean) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', border: `1px solid ${on ? BRAND.red : BRAND.rule}`, background: on ? BRAND.redLight : BRAND.paper, cursor: 'pointer', fontSize: 14, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" } as React.CSSProperties);
   if (f.type === 'date') {
     return (
       <input type="date" value={v} onChange={(e) => onChange(e.target.value)} className="sans"
@@ -737,26 +737,26 @@ export default function GershonOnboarding() {
 <style>
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
-  body { font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; margin: 0; padding: 32px; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1d1d1f; margin: 0; padding: 32px; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .head { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 3px solid #FE1B04; padding-bottom: 16px; margin-bottom: 24px; }
   .brand { display: flex; align-items: center; gap: 12px; }
-  .brand-mark { width: 36px; height: 36px; background: #FE1B04; color: #fff; font-weight: 700; font-style: italic; display: flex; align-items: center; justify-content: center; font-size: 22px; }
-  .brand-name { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #8A857E; font-family: 'SF Mono', Menlo, monospace; }
+  .brand-mark { width: 36px; height: 36px; border-radius: 9px; background: #FE1B04; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .brand-name { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #6E6E73; font-family: 'SF Mono', Menlo, monospace; }
   .brand-title { font-size: 19px; font-weight: 500; color: #1A1A1A; margin-top: 2px; }
-  .meta { text-align: right; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #8A857E; font-family: 'SF Mono', Menlo, monospace; line-height: 1.7; }
+  .meta { text-align: right; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #6E6E73; font-family: 'SF Mono', Menlo, monospace; line-height: 1.7; }
   .meta strong { color: #1A1A1A; font-weight: 500; }
-  h1 { font-size: 32px; font-weight: 400; margin: 0 0 4px; letter-spacing: -0.02em; }
-  h1 em { color: #FE1B04; }
+  h1 { font-size: 30px; font-weight: 800; margin: 0 0 4px; letter-spacing: -0.03em; }
+  h1 em { color: #FE1B04; font-style: normal; }
   .lead { font-size: 12px; color: #555; margin: 8px 0 28px; }
   .sec { margin-bottom: 22px; page-break-inside: avoid; }
   .sec-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1.5px solid #FE1B04; padding-bottom: 6px; margin-bottom: 10px; }
   .sec-num { font-family: 'SF Mono', Menlo, monospace; font-size: 10px; letter-spacing: 0.2em; color: #FE1B04; }
-  .sec-title { font-size: 17px; font-weight: 500; }
+  .sec-title { font-size: 16px; font-weight: 700; }
   table.kv { width: 100%; border-collapse: collapse; }
-  table.kv td { padding: 7px 0; border-bottom: 1px solid #EEEAE3; vertical-align: top; font-size: 11.5px; line-height: 1.5; }
-  table.kv td.lbl { width: 38%; font-family: 'SF Mono', Menlo, monospace; font-size: 9.5px; color: #8A857E; letterspacing: 0.06em; text-transform: uppercase; padding-right: 16px; padding-top: 9px; }
+  table.kv td { padding: 7px 0; border-bottom: 1px solid #E5E7EB; vertical-align: top; font-size: 11.5px; line-height: 1.5; }
+  table.kv td.lbl { width: 38%; font-family: 'SF Mono', Menlo, monospace; font-size: 9.5px; color: #6E6E73; letterspacing: 0.06em; text-transform: uppercase; padding-right: 16px; padding-top: 9px; }
   table.kv td.val { color: #1A1A1A; }
-  .ack { margin-top: 26px; padding: 18px 22px; border: 1px solid #FE1B04; background: #FAF8F5; page-break-inside: avoid; }
+  .ack { margin-top: 26px; padding: 18px 22px; border: 1px solid #FE1B04; background: #fff5f5; border-radius: 10px; page-break-inside: avoid; }
   .ack h2 { font-size: 14px; margin: 0 0 12px; font-weight: 600; letter-spacing: 0.04em; }
   .ack ul { list-style: none; padding: 0; margin: 0; }
   .ack li { padding: 6px 0; font-size: 11.5px; line-height: 1.5; display: flex; gap: 10px; align-items: flex-start; }
@@ -768,7 +768,7 @@ export default function GershonOnboarding() {
   .sig-name { font-style: italic; font-size: 26px; border-bottom: 2px solid #FE1B04; padding-bottom: 4px; }
   .sig-date { font-family: 'SF Mono', Menlo, monospace; font-size: 14px; border-bottom: 2px solid #FE1B04; padding-bottom: 6px; }
   .sig-foot { margin-top: 16px; font-family: 'SF Mono', Menlo, monospace; font-size: 9px; letter-spacing: 0.1em; color: #999; text-transform: uppercase; }
-  .foot { margin-top: 28px; padding-top: 14px; border-top: 1px solid #EEEAE3; font-family: 'SF Mono', Menlo, monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: #8A857E; text-align: center; }
+  .foot { margin-top: 28px; padding-top: 14px; border-top: 1px solid #E5E7EB; font-family: 'SF Mono', Menlo, monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: #6E6E73; text-align: center; }
   .print-bar { position: fixed; top: 12px; right: 12px; background: #FE1B04; color: #fff; padding: 10px 18px; font-family: Inter, sans-serif; font-size: 13px; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
   @media print { .print-bar { display: none; } body { padding: 0; } }
 </style>
@@ -777,7 +777,7 @@ export default function GershonOnboarding() {
   <button class="print-bar" onclick="window.print()">Save as PDF · Print</button>
   <div class="head">
     <div class="brand">
-      <div class="brand-mark"><span style="font-family:Georgia,serif">G</span></div>
+      <div class="brand-mark"><span style="font-weight:800">G</span></div>
       <div>
         <div class="brand-name">Gershon Consulting</div>
         <div class="brand-title">Client Onboarding Intake</div>
@@ -835,15 +835,18 @@ export default function GershonOnboarding() {
   // ========================================================================
 
   return (
-    <div style={{ minHeight: '100vh', background: BRAND.cream, color: BRAND.ink, fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: BRAND.cream, color: BRAND.ink, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" }}>
       {/* dangerouslySetInnerHTML: a plain {`...`} child gets its quotes HTML-escaped on SSR
           (' -> &#x27;), which broke the CSS and caused React hydration errors #418/#423/#425.
           Fonts are now loaded with <link> in app/layout.tsx instead of @import here. */}
       <style dangerouslySetInnerHTML={{ __html: `
         * { box-sizing: border-box; }
-        .serif { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; }
-        .mono { font-family: 'JetBrains Mono', 'SF Mono', monospace; letter-spacing: -0.01em; }
-        .sans { font-family: 'Inter', sans-serif; }
+        .serif, .mono, .sans, input, textarea, button, select { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important; }
+        /* Unified Gershon design (Linalysis master): bold sans headings, no italics, pill buttons */
+        .serif:not(input) { font-weight: 700 !important; font-style: normal !important; letter-spacing: -0.015em; }
+        h1.serif { font-weight: 800 !important; letter-spacing: -0.035em !important; }
+        h1 span { font-style: normal !important; }
+        .mono { font-weight: 600; }
 
         @keyframes dotPulse { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
         .dot { width: 6px; height: 6px; background: ${BRAND.charcoal}; border-radius: 50%; display: inline-block; animation: dotPulse 1.4s infinite ease-in-out; }
@@ -857,14 +860,15 @@ export default function GershonOnboarding() {
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .fade-in { animation: fadeIn 0.5s ease-out; }
 
-        .btn-primary { background: ${BRAND.red}; color: white; border: none; padding: 12px 24px; font-weight: 500; font-size: 14px; cursor: pointer; transition: background 0.15s; letter-spacing: 0.02em; }
+        .btn-primary { background: ${BRAND.red}; color: white; border: none; padding: 12px 24px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.15s; border-radius: 999px; }
         .btn-primary:hover:not(:disabled) { background: ${BRAND.redDark}; }
-        .btn-primary:disabled { background: #CFC9C1; cursor: not-allowed; }
+        .btn-primary:disabled { background: #D1D5DB; cursor: not-allowed; }
 
-        .btn-ghost { background: transparent; color: ${BRAND.charcoal}; border: 1px solid ${BRAND.rule}; padding: 10px 20px; font-weight: 500; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+        .btn-ghost { background: transparent; color: ${BRAND.charcoal}; border: 1px solid ${BRAND.rule}; padding: 10px 20px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.15s; border-radius: 999px; }
         .btn-ghost:hover { border-color: ${BRAND.charcoal}; }
 
         input:focus, textarea:focus { outline: none; border-color: ${BRAND.red}; }
+        input[type=checkbox], input[type=radio] { accent-color: ${BRAND.red}; }
 
         .scroll-area::-webkit-scrollbar { width: 6px; }
         .scroll-area::-webkit-scrollbar-track { background: transparent; }
@@ -885,8 +889,8 @@ export default function GershonOnboarding() {
       <header style={{ borderBottom: `1px solid ${BRAND.rule}`, background: BRAND.paper, position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 1280, margin: '0 auto', padding: '18px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 32, height: 32, background: BRAND.red, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span className="serif" style={{ color: 'white', fontSize: 18, fontWeight: 600, fontStyle: 'italic' }}>G</span>
+            <div style={{ width: 34, height: 34, borderRadius: 9, background: BRAND.red, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span className="serif" style={{ color: 'white', fontSize: 18, fontWeight: 800 }}>G</span>
             </div>
             <div>
               <div className="mono" style={{ fontSize: 10, color: BRAND.muted, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Gershon Consulting</div>
@@ -1021,7 +1025,7 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
           <label className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>
             Your company website <span style={{ color: BRAND.red }}>*</span>
           </label>
-          <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${touched && !isValid ? BRAND.red : BRAND.rule}`, background: BRAND.paper, transition: 'border 0.15s' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${touched && !isValid ? BRAND.red : BRAND.rule}`, background: BRAND.paper, transition: 'border 0.15s', borderRadius: 12 }}>
             <span className="mono" style={{ padding: '16px 14px 16px 18px', fontSize: 13, color: BRAND.muted, borderRight: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               https://
             </span>
@@ -1040,7 +1044,7 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
                 border: 'none',
                 padding: '16px 18px',
                 fontSize: 17,
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
                 color: BRAND.ink,
                 background: 'transparent',
               }}
@@ -1057,7 +1061,7 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
           <label className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>
             Your LinkedIn profile <span style={{ color: BRAND.muted, fontWeight: 400 }}>(optional, big quality boost)</span>
           </label>
-          <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${touched && !linkedInValid ? BRAND.red : BRAND.rule}`, background: BRAND.paper, transition: 'border 0.15s' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${touched && !linkedInValid ? BRAND.red : BRAND.rule}`, background: BRAND.paper, transition: 'border 0.15s', borderRadius: 12 }}>
             <span className="mono" style={{ padding: '16px 14px 16px 18px', fontSize: 13, color: BRAND.muted, borderRight: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               linkedin.com/in/
             </span>
@@ -1078,7 +1082,7 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
                 border: 'none',
                 padding: '16px 18px',
                 fontSize: 17,
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
                 color: BRAND.ink,
                 background: 'transparent',
               }}
@@ -1179,7 +1183,7 @@ function ResearchingScreen({ status }) {
         This typically takes 30–60 seconds. Sit tight — when we're done, the intake will already know who you are.
       </p>
 
-      <div style={{ marginTop: 56, background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: 28 }}>
+      <div style={{ marginTop: 56, background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: 28, borderRadius: 12 }}>
         {lines.map((line, i) => {
           const done = step > i;
           const active = step === i;
@@ -1225,7 +1229,7 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOption, 
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px', display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32, minHeight: 'calc(100vh - 72px)' }}>
 
       {/* CHAT COLUMN */}
-      <div style={{ display: 'flex', flexDirection: 'column', background: BRAND.paper, border: `1px solid ${BRAND.rule}`, minHeight: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', background: BRAND.paper, border: `1px solid ${BRAND.rule}`, minHeight: 0, borderRadius: 12 }}>
 
         {/* Research banner — only shown if upfront research happened */}
         {researchSource && (
@@ -1279,7 +1283,7 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOption, 
                           fontSize: 13.5,
                           lineHeight: 1.4,
                           cursor: 'pointer',
-                          fontFamily: 'Inter, sans-serif',
+                          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
                           textAlign: 'left',
                           maxWidth: 480,
                           transition: 'all 0.15s',
@@ -1332,10 +1336,11 @@ function ConversationView({ messages, input, setInput, sendMessage, sendOption, 
                 resize: 'none',
                 background: BRAND.paper,
                 color: BRAND.ink,
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
                 lineHeight: 1.5,
                 minHeight: 44,
                 maxHeight: 160,
+                borderRadius: 12,
               }}
             />
             <button
@@ -1434,14 +1439,14 @@ function MessageBubble({ role, content }) {
 function Avatar() {
   return (
     <div style={{ width: 32, height: 32, background: BRAND.red, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
-      <span className="serif" style={{ color: 'white', fontSize: 15, fontWeight: 600, fontStyle: 'italic' }}>G</span>
+      <span className="serif" style={{ color: 'white', fontSize: 15, fontWeight: 800 }}>G</span>
     </div>
   );
 }
 
 function UserAvatar() {
   return (
-    <div style={{ width: 32, height: 32, background: BRAND.ink, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+    <div style={{ width: 32, height: 32, borderRadius: 9, background: BRAND.ink, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
       <span className="mono" style={{ color: 'white', fontSize: 11, fontWeight: 500 }}>YOU</span>
     </div>
   );
@@ -1456,7 +1461,7 @@ function Sidebar({ currentSection, sectionsDone, responses }) {
     <aside style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       {/* Progress */}
-      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '22px 24px' }}>
+      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '22px 24px', borderRadius: 12 }}>
         <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 18 }}>
           Progress
         </div>
@@ -1489,7 +1494,7 @@ function Sidebar({ currentSection, sectionsDone, responses }) {
       </div>
 
       {/* Captured so far */}
-      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '22px 24px', flex: 1, minHeight: 0 }}>
+      <div style={{ background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: '22px 24px', flex: 1, minHeight: 0, borderRadius: 12 }}>
         <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 18 }}>
           Captured
         </div>
@@ -1602,7 +1607,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
       </div>
 
       {/* Progress strip */}
-      <div style={{ marginBottom: 36, padding: 18, background: BRAND.paper, border: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', gap: 24 }}>
+      <div style={{ marginBottom: 36, padding: 18, background: BRAND.paper, border: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', gap: 24, borderRadius: 12 }}>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
             <span className="mono" style={{ fontSize: 11, color: BRAND.muted, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
@@ -1882,7 +1887,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
       })}
 
       {/* Acknowledgments */}
-      <div style={{ marginTop: 64, padding: 32, background: BRAND.paper, border: `1px solid ${BRAND.rule}` }}>
+      <div style={{ marginTop: 64, padding: 32, background: BRAND.paper, border: `1px solid ${BRAND.rule}`, borderRadius: 12 }}>
         <div className="mono" style={{ fontSize: 11, color: BRAND.red, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
           — Section 09
         </div>
@@ -1908,7 +1913,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
       </div>
 
       {/* Terms of Service + Signature */}
-      <div style={{ marginTop: 32, padding: 32, background: BRAND.ink, color: 'white' }}>
+      <div style={{ marginTop: 32, padding: 32, background: BRAND.ink, color: 'white', borderRadius: 12 }}>
         <div className="mono" style={{ fontSize: 11, color: BRAND.red, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
           — Section 10
         </div>
@@ -1951,7 +1956,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                 fontSize: 28,
                 fontStyle: 'italic',
                 color: 'white',
-                fontFamily: 'Fraunces, serif',
+                fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
               }}
             />
           </div>
@@ -1972,7 +1977,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                 padding: '10px 0',
                 fontSize: 16,
                 color: 'white',
-                fontFamily: 'JetBrains Mono, monospace',
+                fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
                 colorScheme: 'dark',
               }}
             />
@@ -2017,7 +2022,7 @@ function SignedScreen({ responses, signatureName, signatureDate, exportJSON, exp
         We've received your onboarding intake for <strong>{responses.companyName || 'your company'}</strong> and it is now binding on this project. A Gershon team member will be in touch within one business day to confirm kickoff and schedule the first weekly update call.
       </p>
 
-      <div style={{ marginTop: 40, padding: 24, background: BRAND.paper, border: `1px solid ${BRAND.rule}` }}>
+      <div style={{ marginTop: 40, padding: 24, background: BRAND.paper, border: `1px solid ${BRAND.rule}`, borderRadius: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
           <div>
             <div className="mono" style={{ fontSize: 10, color: BRAND.muted, letterSpacing: '0.15em', textTransform: 'uppercase' }}>Signed by</div>
