@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, CircleDot, Circle, Send, Sparkles, ArrowRight, Download, AlertCircle, Pencil, Lock, Paperclip, FileText } from 'lucide-react';
+import { Check, CircleDot, Circle, Send, Sparkles, ArrowRight, Download, AlertCircle, Pencil, Lock, Paperclip, FileText, ArrowLeft } from 'lucide-react';
 
 // ============================================================================
 // GERSHON CONSULTING — INTERACTIVE ONBOARDING FORM
@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.4.1';
+const APP_VERSION = 'v0.4.2';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -199,7 +199,7 @@ const FIELD_HELP: Record<string, string> = {
   competitors: 'Who are your top 5 competitors, with website links and the reason why?',
   additionalComments: 'Anything you need us to know that could be important for this campaign, but not addressed yet.',
   startDate: 'Ideally the first of the upcoming month.',
-  quoteReference: 'Please upload the quote we sent you, validated. If you need an updated version first, contact us ASAP.',
+  quoteReference: 'Please upload the quote we sent you, validated. If you need an updated version first, contact us ASAP. (If you received a Quote Special BlackFriday, this is where you use it.)',
 };
 
 const isOtherOption = (o: string) => o.toLowerCase() === 'other' || o.toLowerCase() === 'autre';
@@ -898,6 +898,9 @@ export default function GershonOnboarding() {
 
         input:focus, textarea:focus { outline: none; border-color: ${BRAND.red}; }
         input[type=checkbox], input[type=radio] { accent-color: ${BRAND.red}; }
+        @keyframes missingNudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(-4px); } }
+        .missing-arrow { animation: missingNudge 1.2s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .missing-arrow { animation: none; } }
 
         .scroll-area::-webkit-scrollbar { width: 6px; }
         .scroll-area::-webkit-scrollbar-track { background: transparent; }
@@ -1597,6 +1600,20 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
   const requiredMissing = requiredFields.length - filledRequired;
   const allRequiredFilled = requiredMissing === 0;
 
+  // Everything still blocking "Sign & submit", listed under the button.
+  const isBlank = (v: any) => v === undefined || v === null || String(v).replace(/^Other:\s*$/i, '').trim() === '';
+  const missingFieldItems = requiredFields.filter(f => isBlank(responses[f.id]));
+  const missingAckCount = ACKNOWLEDGMENTS.filter(a => !acknowledgments[a.id]).length;
+  const missingOther: string[] = [];
+  if (missingAckCount > 0) missingOther.push(`${missingAckCount} acknowledgment${missingAckCount > 1 ? 's' : ''} to check`);
+  if (!termsAccepted) missingOther.push('Accept the Terms of Service');
+  if (signatureName.trim().length < 2) missingOther.push('Type your full name as signature');
+  if (!signatureDate) missingOther.push('Signature date');
+  const scrollToField = (id: string) => {
+    const el = typeof document !== 'undefined' ? document.getElementById(`field-${id}`) : null;
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   // Quote file upload — hidden file input lives at the review level.
   const quoteFileRef = useRef<HTMLInputElement | null>(null);
 
@@ -1671,7 +1688,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                 const hasValue = status === 'prefilled' || status === 'filled';
 
                 return (
-                  <div key={f.id} className="review-row" style={{
+                  <div key={f.id} id={`field-${f.id}`} className="review-row" style={{
                     padding: '16px 0',
                     borderBottom: `1px solid ${BRAND.rule}`,
                     display: 'grid',
@@ -1860,6 +1877,12 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                       </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {status === 'missing-required' && (
+                          <span className="missing-arrow" role="img" aria-label="Required information missing" title="Required: please fill this in"
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 26, borderRadius: 8, background: BRAND.red, color: '#fff', boxShadow: '0 0 0 2px #E5E7EB, 0 1px 3px rgba(0,0,0,0.15)', flexShrink: 0 }}>
+                            <ArrowLeft size={18} strokeWidth={3} />
+                          </span>
+                        )}
                         {f.id === 'quoteReference' && (
                           <>
                             <input
@@ -2026,6 +2049,32 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
             Sign &amp; submit <ArrowRight size={16} />
           </button>
         </div>
+        {!canSign && (missingFieldItems.length > 0 || missingOther.length > 0) && (
+          <div className="missing-panel" role="status" aria-live="polite" style={{ marginTop: 16, border: `1px solid ${BRAND.red}`, borderRadius: 12, background: BRAND.redLight, padding: '16px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, color: BRAND.red, marginBottom: 10 }}>
+              <AlertCircle size={16} /> To complete the form, still missing ({missingFieldItems.length + missingOther.length}):
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {missingFieldItems.map(f => {
+                const sec = SECTIONS.find(sx => sx.fields.some(ff => ff.id === f.id));
+                return (
+                  <li key={f.id}>
+                    <button type="button" onClick={() => scrollToField(f.id)}
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: BRAND.ink, fontSize: 14, textAlign: 'left', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <ArrowLeft size={14} color={BRAND.red} strokeWidth={3} />
+                      <span>{sec ? `${sec.number} · ${sec.title} — ` : ''}<span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3 }}>{f.label}</span></span>
+                    </button>
+                  </li>
+                );
+              })}
+              {missingOther.map(t => (
+                <li key={t} style={{ fontSize: 14, color: BRAND.ink, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ArrowLeft size={14} color={BRAND.red} strokeWidth={3} /> {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

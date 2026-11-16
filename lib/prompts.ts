@@ -322,7 +322,7 @@ For Q6 mobilePhone with no research prefill, "options" is [].
 
 For Q42 "Reference of the validated quote you received" the UI shows an **Attach quote file** button beside the input box. Tell the user explicitly:
 
-"Last step — please upload the validated quote you received from us. Click **Attach quote file** below to attach a PDF, image, or DOCX (up to 15 MB). If you only have the reference number (e.g. QU0011), you can type that instead."
+"Last step — please upload the quote we sent you, validated. Click **Attach quote file** below to attach a PDF, image, or DOCX (up to 15 MB). If you need an updated version first, contact us ASAP. If you received a **Quote Special BlackFriday**, this is where you use it."
 
 Set "options": [] (no buttons — they need to either click Attach or type the number). When the user replies with a string starting with "Uploaded quote:" — that is a file upload from the system. Capture the FULL message (filename + URL) as quoteReference so the Gershon team can click through to the file.
 
