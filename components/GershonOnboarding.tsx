@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.2.2';
+const APP_VERSION = 'v0.3.1';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -65,7 +65,6 @@ const SECTIONS = [
     title: 'Campaign Scope',
     fields: [
       { id: 'campaignDuration', label: 'How long do you plan to run this campaign', required: true, options: ['3 months (the bare minimum)', '6 months', '12 months', 'As long as we get good meetings', 'As long as we can afford it', 'Other'] },
-      { id: 'services', label: 'Services required (PROMOTE / NETWORK / ENGAGE)', required: true, multi: true, options: ['Social Content Creation (PROMOTE)', 'Social Selling (NETWORK)', 'Lead Generation Emailing (ENGAGE)'] },
     ],
   },
   {
@@ -74,11 +73,10 @@ const SECTIONS = [
     title: 'Prospects',
     fields: [
       { id: 'targetDefinition', label: 'Prospect definition', required: true, long: true },
-      { id: 'targetLocations', label: 'Prospect locations', required: true },
       { id: 'targetIndustries', label: 'Prospect industries', required: true },
       { id: 'targetTitles', label: 'Prospect job titles (ICP)', required: true },
       { id: 'initialTemplate', label: 'What you use today to pitch new prospects', required: true, long: true },
-      { id: 'idealLinkedInLeads', label: '5 LinkedIn links of ideal leads', required: true, long: true },
+      { id: 'idealLinkedInLeads', label: '5 LinkedIn links of existing clients', required: true, long: true },
       { id: 'targetHeadcount', label: 'Prospect headcount range (min–max)', required: true },
       { id: 'targetRevenue', label: 'Prospect revenue range (min–max)', required: true },
     ],
@@ -87,7 +85,6 @@ const SECTIONS = [
     id: 'promote',
     number: '05',
     title: 'Social Networks (PROMOTE)',
-    optional: true,
     fields: [
       { id: 'top5Highlights', label: 'Top 5 things to highlight on social', required: true, long: true },
       { id: 'otherContent', label: 'Other content to include', required: false, long: true },
@@ -107,7 +104,6 @@ const SECTIONS = [
     id: 'network',
     number: '06',
     title: 'LinkedIn Profile (NETWORK)',
-    optional: true,
     fields: [
       { id: 'companyLinkedIn', label: 'Company LinkedIn page', required: true },
       { id: 'personalLinkedIn', label: 'Personal LinkedIn page', required: true },
@@ -131,11 +127,117 @@ const SECTIONS = [
     number: '08',
     title: 'Timing & Quote',
     fields: [
-      { id: 'startDate', label: 'Starting campaign date (ideally first of upcoming month)', required: true },
+      { id: 'startDate', label: 'Starting campaign date (ideally first of upcoming month)', required: true, type: 'date' },
       { id: 'quoteReference', label: 'Reference of the validated quote you received', required: true, long: true },
     ],
   },
 ];
+
+
+// Help text taken from the original Google Form, shown under each label.
+const FIELD_HELP: Record<string, string> = {
+  businessType: 'What type of business are you?',
+  industry: 'What industry are you in?',
+  expectations: 'Please give us an overview of your expectations for this campaign.',
+  productLinks: 'If you are selling products or services on your website, please enter the link for each (one per line).',
+  website: "If you don't have a website, where can customers contact you or learn more about your business?",
+  campaignDuration: 'How long do you plan to run a marketing campaign in the US? One answer only.',
+  targetDefinition: 'Tell us anything you know or assume about your target prospects. (Prospects are always located in the United States.)',
+  targetIndustries: 'What are the industries we should focus on?',
+  targetTitles: 'What is the Ideal Customer Profile of your targets?',
+  initialTemplate: 'What are you using today to pitch new prospects?',
+  idealLinkedInLeads: 'Please share the LinkedIn profile links of 5 of your existing clients (one per line). If you have more than 5, we take them too. The better the profiling, the better the result of the campaign.',
+  targetHeadcount: 'Minimum and maximum number of employees working for the targeted companies.',
+  targetRevenue: 'Minimum and maximum revenues of the targeted companies.',
+  top5Highlights: 'Examples: product differentiation(s), pricing, sales, specials, what your clients like most about your product/service, and anything else that makes your business stand out.',
+  otherContent: "Please list any other content you'd like to see on your social feeds.",
+  dontWantContent: 'What type of content do you NOT want to see on your account?',
+  twitterHashtags: 'What are the Twitter hashtags (#) your campaigns should focus on?',
+  competitorTwitterAccounts: 'What are the Twitter accounts of your 10 biggest competitors? (With 500+ followers each.)',
+  googleKeywords: 'What are the Google keywords your campaigns should focus on?',
+  photosLink: 'Do you have photos to share with us via Dropbox or Google Drive? If so, please paste the link.',
+  royaltyFreeConsent: 'If you have no photos, or a limited amount, please confirm that we can post photos from our own library of royalty-free, professionally taken images. One answer only.',
+  linkedInPageAdmin: 'Please add Olivier Attia (linkedin.com/in/olivierattia) as Admin of your LinkedIn page.',
+  facebookPageAdmin: 'Please add Olivier Attia (facebook.com/oattia) as Admin of your Facebook page.',
+  googleBusinessAdmin: 'Please add Olivier Attia (oattia@gmail.com) as Admin of your Google Business page (google.com/business).',
+  twitterCredentials: 'Twitter login and password. This form is secured.',
+  companyLinkedIn: 'Your company LinkedIn page URL.',
+  personalLinkedIn: "Social Selling campaigns are done on PEOPLE's profiles: the LinkedIn profile we will run the campaign on.",
+  salesNavActive: 'For this campaign to be effective, the user whose network we accelerate needs a LinkedIn Sales Navigator license (business.linkedin.com/sales-navigator).',
+  linalysisActive: 'Linalysis.com provides the reporting tools to track the results of the campaign. Set up your account at bit.ly/linalysis.',
+  calendlyLink: 'Or another platform we can use to secure meetings on your behalf.',
+  ssiScores: 'As of today: SSI, SSI Network and SSI Industry, available at linkedin.com/sales/ssi.',
+  competitors: 'Who are your top 5 competitors, with website links and the reason why?',
+  additionalComments: 'Anything you need us to know that could be important for this campaign, but not addressed yet.',
+  startDate: 'Ideally the first of the upcoming month.',
+  quoteReference: 'Please upload the quote we sent you, validated. If you need an updated version first, contact us ASAP.',
+};
+
+const isOtherOption = (o: string) => o.toLowerCase() === 'other' || o.toLowerCase() === 'autre';
+
+// Inline control for choice and date fields: rendered directly on the review
+// screen (checkbox / radio / date), exactly like the original form, no edit click needed.
+function InlineChoice({ f, value, onChange }: { f: any; value: any; onChange: (v: string) => void }) {
+  const v = value === undefined || value === null ? '' : String(value);
+  const opts: string[] | undefined = f.options;
+  const box = (on: boolean) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', border: `1px solid ${on ? BRAND.red : BRAND.rule}`, background: on ? BRAND.redLight : BRAND.paper, cursor: 'pointer', fontSize: 14, fontFamily: 'Inter, sans-serif' } as React.CSSProperties);
+  if (f.type === 'date') {
+    return (
+      <input type="date" value={v} onChange={(e) => onChange(e.target.value)} className="sans"
+        style={{ border: `1px solid ${v ? BRAND.rule : BRAND.red}`, padding: '10px 12px', fontSize: 15, fontFamily: 'Inter', background: BRAND.paper, maxWidth: 240 }} />
+    );
+  }
+  if (opts && opts.length === 1) {
+    const on = v === opts[0];
+    return (
+      <label style={{ ...box(on), display: 'inline-flex' }}>
+        <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked ? opts[0] : '')} style={{ accentColor: BRAND.red, width: 16, height: 16 }} />
+        <span>{opts[0]}</span>
+      </label>
+    );
+  }
+  if (opts && f.multi) {
+    const sel = v.split(/,\s*/).filter(Boolean);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {opts.map((o) => {
+          const on = sel.includes(o);
+          return (
+            <label key={o} style={box(on)}>
+              <input type="checkbox" checked={on} onChange={(e) => onChange((e.target.checked ? [...sel, o] : sel.filter((x) => x !== o)).join(', '))} style={{ accentColor: BRAND.red, width: 16, height: 16 }} />
+              <span>{o}</span>
+            </label>
+          );
+        })}
+      </div>
+    );
+  }
+  if (opts) {
+    const preset = opts.find((o) => !isOtherOption(o) && o === v);
+    const otherOn = !!v && !preset;
+    const otherText = otherOn ? v.replace(/^Other:?\s*/i, '') : '';
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {opts.map((o) => {
+          const isOther = isOtherOption(o);
+          const on = isOther ? otherOn : v === o;
+          return (
+            <label key={o} style={box(on)}>
+              <input type="radio" name={`inline-${f.id}`} checked={on} onChange={() => onChange(isOther ? 'Other: ' : o)} style={{ accentColor: BRAND.red }} />
+              <span>{o}</span>
+              {isOther && on && (
+                <input type="text" value={otherText} autoFocus placeholder="Please specify…" onChange={(e) => onChange('Other: ' + e.target.value)} onClick={(e) => e.preventDefault()}
+                  className="sans" style={{ flex: 1, minWidth: 0, border: 'none', borderBottom: `1px solid ${BRAND.red}`, background: 'transparent', padding: '2px 4px', fontSize: 14 }} />
+              )}
+            </label>
+          );
+        })}
+      </div>
+    );
+  }
+  return null;
+}
+const isInlineField = (f: any) => f.type === 'date' || Array.isArray(f.options);
 
 // Acknowledgments required before signature
 const ACKNOWLEDGMENTS = [
@@ -187,7 +289,7 @@ CONVERSATION FLOW
 2. Get the basic identity (Section 01) from the client directly — name, title, email, phone. Don't guess those.
 3. Once you have the Company Name AND website (end of Section 02 or sooner), USE WEB_SEARCH to research. Pull site content, LinkedIn page, recent news.
 4. From Section 03 onward, drive the conversation through SUGGESTIONS. "Here's what I'm seeing / here's what I'd suggest — confirm, or tell me what's off." Batch suggestions for related fields.
-5. For SECTION 03 (campaign), if the client does NOT select PROMOTE or NETWORK, skip the corresponding section (05 or 06) — their "sectionComplete" should still fire for those sections with empty capture.
+5. All services (PROMOTE, NETWORK, ENGAGE) are part of a single package — always cover sections 05 and 06 together.
 6. When a section is fully captured, set "sectionComplete": true and include a short summary line in the message.
 7. When ALL sections are done, set "readyForReview": true and tell the client "Great — one last step. We'll take you to the final review and signature screen."
 
@@ -534,7 +636,7 @@ export default function GershonOnboarding() {
   const allRequiredFieldsFilled = SECTIONS.every(s =>
     s.fields.filter(f => f.required).every(f => {
       const v = responses[f.id];
-      return v !== undefined && v !== null && String(v).trim() !== '';
+      return v !== undefined && v !== null && String(v).replace(/^Other:\s*$/i, '').trim() !== '';
     })
   );
   const canSign = allAcknowledged && termsAccepted && signatureName.trim().length >= 2 && signatureDate && allRequiredFieldsFilled;
@@ -547,7 +649,7 @@ export default function GershonOnboarding() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId,
-          responses,
+          responses: { ...responses, targetLocations: 'United States' },
           acknowledgments,
           termsAccepted,
           signature: { name: signatureName, date: signatureDate },
@@ -1051,9 +1153,11 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
 function ResearchingScreen({ status }) {
   const [tick, setTick] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 2000);
+    const id = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(id);
   }, []);
+  // Steps advance every ~6s; the last step keeps spinning until the research returns.
+  const step = Math.min(Math.floor(tick / 6), 4);
 
   const lines = [
     'Visiting your homepage',
@@ -1072,13 +1176,13 @@ function ResearchingScreen({ status }) {
         We're doing <span style={{ fontStyle: 'italic', color: BRAND.red }}>the homework</span> for you.
       </h1>
       <p style={{ fontSize: 16, lineHeight: 1.6, color: BRAND.charcoalLight, marginTop: 24 }}>
-        This typically takes 20–40 seconds. Sit tight — when we're done, the intake will already know who you are.
+        This typically takes 30–60 seconds. Sit tight — when we're done, the intake will already know who you are.
       </p>
 
       <div style={{ marginTop: 56, background: BRAND.paper, border: `1px solid ${BRAND.rule}`, padding: 28 }}>
         {lines.map((line, i) => {
-          const done = tick > i;
-          const active = tick === i;
+          const done = step > i;
+          const active = step === i;
           return (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 0', borderBottom: i < lines.length - 1 ? `1px solid ${BRAND.rule}` : 'none' }}>
               <div style={{ width: 14, flexShrink: 0 }}>
@@ -1092,11 +1196,14 @@ function ResearchingScreen({ status }) {
         })}
       </div>
 
-      {status && (
-        <div className="mono" style={{ marginTop: 20, fontSize: 11, color: BRAND.muted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          {status}
-        </div>
-      )}
+      <div style={{ marginTop: 20, height: 3, background: BRAND.rule, position: 'relative', overflow: 'hidden' }}>
+        <div className="gx-indeterminate" style={{ position: 'absolute', top: 0, height: '100%', width: '35%', background: BRAND.red }} />
+      </div>
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes gxSlide { 0% { left: -35%; } 100% { left: 100%; } } .gx-indeterminate { animation: gxSlide 1.4s ease-in-out infinite; }` }} />
+      <div className="mono" style={{ marginTop: 14, fontSize: 11, color: BRAND.muted, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+        <span>{step >= 4 ? 'Still working — assembling your pre-filled intake…' : (status || 'Working…')}</span>
+        <span>{tick}s elapsed</span>
+      </div>
     </div>
   );
 }
@@ -1541,19 +1648,148 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
                       {f.required && <span style={{ width: 6, height: 6, borderRadius: '50%', background: hasValue ? BRAND.red : '#D9C8C8', display: 'inline-block', flexShrink: 0 }} title={f.required ? 'Required' : ''} />}
-                      <div className="mono" style={{ fontSize: 11, color: BRAND.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                        {f.label}
+                      <div>
+                        <div className="mono" style={{ fontSize: 11, color: BRAND.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                          {f.label}
+                        </div>
+                        {FIELD_HELP[f.id] && (
+                          <div className="sans" style={{ fontSize: 12, color: BRAND.charcoalLight, lineHeight: 1.45, marginTop: 6, textTransform: 'none', letterSpacing: 0 }}>
+                            {FIELD_HELP[f.id]}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    {isEditing ? (
-                      <textarea
-                        value={editBuffer}
-                        onChange={(e) => setEditBuffer(e.target.value)}
-                        rows={(f as any).long ? 4 : 1}
-                        autoFocus
-                        className="sans"
-                        style={{ border: `1px solid ${BRAND.red}`, padding: '8px 12px', fontSize: 14, fontFamily: 'Inter', resize: 'vertical', lineHeight: 1.5 }}
-                      />
+                    {isInlineField(f) ? (
+                      <InlineChoice f={f} value={value} onChange={(nv) => setResponses(prev => ({ ...prev, [f.id]: nv }))} />
+                    ) : isEditing ? (
+                      (() => {
+                        const opts = (f as any).options as string[] | undefined;
+                        const isMulti = Boolean((f as any).multi);
+                        const fType = (f as any).type as string | undefined;
+                        const isLong = Boolean((f as any).long);
+                        // Date picker
+                        if (fType === 'date' || f.id === 'startDate') {
+                          return (
+                            <input
+                              type="date"
+                              value={editBuffer || ''}
+                              onChange={(e) => setEditBuffer(e.target.value)}
+                              autoFocus
+                              className="sans"
+                              style={{ border: `1px solid ${BRAND.red}`, padding: '10px 12px', fontSize: 14, fontFamily: 'Inter', lineHeight: 1.5 }}
+                            />
+                          );
+                        }
+                        // Single-option checkbox (Confirmed / YES)
+                        if (opts && opts.length === 1) {
+                          const only = opts[0];
+                          const checked = String(editBuffer || '') === only;
+                          return (
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${checked ? BRAND.red : BRAND.rule}`, background: checked ? BRAND.redLight : 'transparent', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => setEditBuffer(e.target.checked ? only : '')}
+                                autoFocus
+                                style={{ accentColor: BRAND.red, width: 16, height: 16, cursor: 'pointer' }}
+                              />
+                              <span style={{ fontSize: 14 }}>{only}</span>
+                            </label>
+                          );
+                        }
+                        // Multi-select checkbox list
+                        if (opts && isMulti) {
+                          const selected = String(editBuffer || '').split(/,\s*/).filter(Boolean);
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {opts.map((opt) => {
+                                const on = selected.includes(opt);
+                                return (
+                                  <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${on ? BRAND.red : BRAND.rule}`, background: on ? BRAND.redLight : 'transparent', cursor: 'pointer' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={on}
+                                      onChange={(e) => {
+                                        const next = e.target.checked ? [...selected, opt] : selected.filter((x) => x !== opt);
+                                        setEditBuffer(next.join(', '));
+                                      }}
+                                      style={{ accentColor: BRAND.red, width: 16, height: 16, cursor: 'pointer' }}
+                                    />
+                                    <span style={{ fontSize: 14 }}>{opt}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          );
+                        }
+                        // Single-choice radio list (with Other + free text)
+                        if (opts && opts.length > 1) {
+                          const hasOther = opts.some((o) => o.toLowerCase() === 'other' || o.toLowerCase() === 'autre');
+                          const presetMatch = opts.find((o) => String(editBuffer || '') === o);
+                          const isOther = !!editBuffer && !presetMatch;
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {opts.map((opt) => {
+                                const isOtherOpt = opt.toLowerCase() === 'other' || opt.toLowerCase() === 'autre';
+                                const on = isOtherOpt ? isOther : String(editBuffer || '') === opt;
+                                return (
+                                  <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${on ? BRAND.red : BRAND.rule}`, background: on ? BRAND.redLight : 'transparent', cursor: 'pointer' }}>
+                                    <input
+                                      type="radio"
+                                      name={`opt-${f.id}`}
+                                      checked={on}
+                                      onChange={() => {
+                                        if (isOtherOpt) {
+                                          setEditBuffer(presetMatch ? '' : (editBuffer || ''));
+                                        } else {
+                                          setEditBuffer(opt);
+                                        }
+                                      }}
+                                      style={{ accentColor: BRAND.red, cursor: 'pointer' }}
+                                    />
+                                    <span style={{ fontSize: 14 }}>{opt}</span>
+                                  </label>
+                                );
+                              })}
+                              {hasOther && isOther && (
+                                <input
+                                  type="text"
+                                  value={editBuffer}
+                                  onChange={(e) => setEditBuffer(e.target.value)}
+                                  placeholder="Please specify…"
+                                  autoFocus
+                                  className="sans"
+                                  style={{ marginLeft: 28, border: `1px solid ${BRAND.red}`, padding: '8px 12px', fontSize: 14, fontFamily: 'Inter' }}
+                                />
+                              )}
+                            </div>
+                          );
+                        }
+                        // Long textarea
+                        if (isLong) {
+                          return (
+                            <textarea
+                              value={editBuffer}
+                              onChange={(e) => setEditBuffer(e.target.value)}
+                              rows={4}
+                              autoFocus
+                              className="sans"
+                              style={{ border: `1px solid ${BRAND.red}`, padding: '8px 12px', fontSize: 14, fontFamily: 'Inter', resize: 'vertical', lineHeight: 1.5 }}
+                            />
+                          );
+                        }
+                        // Plain short text
+                        return (
+                          <input
+                            type="text"
+                            value={editBuffer}
+                            onChange={(e) => setEditBuffer(e.target.value)}
+                            autoFocus
+                            className="sans"
+                            style={{ border: `1px solid ${BRAND.red}`, padding: '10px 12px', fontSize: 14, fontFamily: 'Inter', lineHeight: 1.5 }}
+                          />
+                        );
+                      })()
                     ) : (
                       <div className="serif" style={{ fontSize: 15.5, color: BRAND.ink, lineHeight: 1.5, whiteSpace: 'pre-wrap', minHeight: 24 }}>
                         {f.id === 'quoteReference' && typeof value === 'string' && value.includes('http') ? (
@@ -1583,7 +1819,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                         )}
                       </div>
                     )}
-                    {isEditing ? (
+                    {isEditing && !isInlineField(f) ? (
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button onClick={saveEdit} className="btn-primary" style={{ padding: '6px 12px', fontSize: 12 }}>Save</button>
                         <button onClick={cancelEdit} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12 }}>Cancel</button>
@@ -1630,9 +1866,11 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                             </button>
                           </>
                         )}
-                        <button onClick={() => startEdit(f.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BRAND.muted, padding: 4 }} title="Edit">
-                          <Pencil size={14} />
-                        </button>
+                        {!isInlineField(f) && (
+                          <button onClick={() => startEdit(f.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: BRAND.muted, padding: 4 }} title="Edit">
+                            <Pencil size={14} />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
