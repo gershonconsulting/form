@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     // Defensive cleanup: if the model accidentally put step instructions into the
     // options array for confirmation-only fields (Q28 LinkedIn admin, Q34 Sales Nav,
-    // Q35 Linalysis, Facebook/Google admin variants), strip them down to just the
+    // Facebook/Google admin variants), strip them down to just the
     // Confirmed / Not-done-yet buttons. We detect this by:
     //   (a) any option > 60 chars (step text is long, real options are short)
     //   (b) any option that starts with "Click ", "Go to ", "Search for ", "Select ",
