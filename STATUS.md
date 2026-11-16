@@ -1,12 +1,13 @@
 # gershon-form — STATUS
 
-Last updated: 2026-11-16 · App v0.4.0
+Last updated: 2026-11-16 · App v0.4.1
 
 ## What it is
 Conversational client onboarding for Gershon Consulting — live at https://welcome.gershon.ai
 (Cloudflare Pages project `gershon-form`, Git-connected to this repo: push to `main` = deploy).
 
 ## State
+- ✅ v0.4.1 — red arrow on every empty required field (review screen); "still missing" checklist under Sign & submit (click a field to jump to it); quote field help text now includes the Quote Special BlackFriday line (UI + chat prompt).
 - ✅ v0.4.0 — unified Gershon design (Linalysis master): system font stack, bold sans headings,
   brand red #FE1B04, pill buttons, 12px rounded cards, #E5E7EB borders, #1D1D1F text. Fraunces /
   JetBrains Mono web fonts removed. Print/PDF summary view aligned.
