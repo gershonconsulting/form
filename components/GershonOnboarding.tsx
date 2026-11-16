@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.4.1';
+const APP_VERSION = 'v0.4.3';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -108,9 +108,7 @@ const SECTIONS = [
       { id: 'companyLinkedIn', label: 'Company LinkedIn page', required: true },
       { id: 'personalLinkedIn', label: 'Personal LinkedIn page', required: true },
       { id: 'salesNavActive', label: 'Sales Navigator license activated', required: true, options: ['Yes'] },
-      { id: 'linalysisActive', label: 'Linalysis account activated', required: true, options: ['Yes'] },
       { id: 'calendlyLink', label: 'Calendly (or equivalent) link', required: true },
-      { id: 'ssiScores', label: 'Social Selling Index — SSI / SSI Network / SSI Industry', required: false },
       { id: 'competitors', label: 'Top 5 competitors with websites and why', required: true, long: true },
     ],
   },
@@ -164,6 +162,12 @@ function linkify(text: string): React.ReactNode[] {
   return out;
 }
 
+// Renders a multi-line answer as a numbered list (1., 2., ...) — strips any numbering already typed.
+function numberLines(text: string): string {
+  const lines = text.split(/\n|;\s*/).map(l => l.replace(/^\s*(\d+[.)-]|[-•*])\s*/, '').trim()).filter(Boolean);
+  return lines.map((l, i) => `${i + 1}. ${l}`).join('\n');
+}
+
 const FIELD_HELP: Record<string, string> = {
   businessType: 'What type of business are you?',
   industry: 'What industry are you in?',
@@ -193,10 +197,8 @@ const FIELD_HELP: Record<string, string> = {
   companyLinkedIn: 'Your company LinkedIn page URL.',
   personalLinkedIn: "Social Selling campaigns are done on PEOPLE's profiles: the LinkedIn profile we will run the campaign on.",
   salesNavActive: 'For this campaign to be effective, the user whose network we accelerate needs a LinkedIn Sales Navigator license (business.linkedin.com/sales-navigator).',
-  linalysisActive: 'Linalysis.com provides the reporting tools to track the results of the campaign. Set up your account at bit.ly/linalysis.',
   calendlyLink: 'Or another platform we can use to secure meetings on your behalf.',
-  ssiScores: 'As of today: SSI, SSI Network and SSI Industry, available at linkedin.com/sales/ssi.',
-  competitors: 'Who are your top 5 competitors, with website links and the reason why?',
+  competitors: 'Who are your top 5 competitors? Number them 1 to 5, one per line: name, website link, and the reason why.',
   additionalComments: 'Anything you need us to know that could be important for this campaign, but not addressed yet.',
   startDate: 'Ideally the first of the upcoming month.',
   quoteReference: 'Please upload the quote we sent you, validated. If you need an updated version first, contact us ASAP.',
@@ -1805,7 +1807,8 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                             <textarea
                               value={editBuffer}
                               onChange={(e) => setEditBuffer(e.target.value)}
-                              rows={4}
+                              rows={f.id === 'competitors' ? 6 : 4}
+                              placeholder={f.id === 'competitors' ? '1. \n2. \n3. \n4. \n5. ' : undefined}
                               autoFocus
                               className="sans"
                               style={{ border: `1px solid ${BRAND.red}`, padding: '8px 12px', fontSize: 14, fontFamily: 'Inter', resize: 'vertical', lineHeight: 1.5 }}
@@ -1839,7 +1842,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                           })()
                         ) : hasValue ? (
                           <>
-                            {Array.isArray(value) ? value.join(', ') : String(value)}
+                            {f.id === 'competitors' ? numberLines(Array.isArray(value) ? value.join('\n') : String(value)) : (Array.isArray(value) ? value.join(', ') : String(value))}
                             {status === 'prefilled' && (
                               <span className="mono" style={{ marginLeft: 10, padding: '2px 6px', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', background: BRAND.cream, color: BRAND.red, border: `1px solid ${BRAND.redLight}`, verticalAlign: 'middle' }}>
                                 ✓ from research
