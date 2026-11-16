@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.4.0';
+const APP_VERSION = 'v0.4.1';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -135,6 +135,35 @@ const SECTIONS = [
 
 
 // Help text taken from the original Google Form, shown under each label.
+// Turns URLs / domains / emails inside help text into links that open in a new tab.
+const LINK_RE = /([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})|((?:https?:\/\/)?(?:www\.)?[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.(?:com|net|org|ai|ly|io|co)(?:\/[^\s),]*)?)/g;
+function linkify(text: string): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  LINK_RE.lastIndex = 0;
+  while ((m = LINK_RE.exec(text)) !== null) {
+    let token = m[0];
+    const trail = token.match(/[.,;:!?]+$/);
+    if (trail) token = token.slice(0, -trail[0].length);
+    const start = m.index;
+    if (start > last) out.push(text.slice(last, start));
+    const isEmail = !!m[1];
+    const href = isEmail ? `mailto:${token}` : (/^https?:\/\//i.test(token) ? token : `https://${token}`);
+    out.push(
+      <a key={start} href={href} target="_blank" rel="noopener noreferrer"
+         style={{ color: BRAND.red, textDecoration: 'underline', textUnderlineOffset: 2 }}
+         onClick={(e) => e.stopPropagation()}>
+        {token}
+      </a>
+    );
+    last = start + token.length;
+    LINK_RE.lastIndex = last;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 const FIELD_HELP: Record<string, string> = {
   businessType: 'What type of business are you?',
   industry: 'What industry are you in?',
@@ -1659,7 +1688,7 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
                         </div>
                         {FIELD_HELP[f.id] && (
                           <div className="sans" style={{ fontSize: 12, color: BRAND.charcoalLight, lineHeight: 1.45, marginTop: 6, textTransform: 'none', letterSpacing: 0 }}>
-                            {FIELD_HELP[f.id]}
+                            {linkify(FIELD_HELP[f.id])}
                           </div>
                         )}
                       </div>
