@@ -1,12 +1,13 @@
 # gershon-form — STATUS
 
-Last updated: 2026-11-16 · App v0.4.4
+Last updated: 2026-11-16 · App v0.4.5
 
 ## What it is
 Conversational client onboarding for Gershon Consulting — live at https://welcome.gershon.ai
 (Cloudflare Pages project `gershon-form`, Git-connected to this repo: push to `main` = deploy).
 
 ## State
+- ✅ v0.4.5 — completed-form email now always goes to report@gershonconsulting.com (was welcome@ via the GERSHON_NOTIFY_TO Pages setting, now ignored).
 - ✅ v0.4.4 — red arrow on every empty required field (review screen); "still missing" checklist under Sign & submit (click a field to jump to it); quote field help text now includes the Quote Special BlackFriday line (UI + chat prompt).
 - ✅ v0.4.3 — SSI question removed; Top 5 competitors captured and shown as a numbered list 1–5. Numbering now: Section 06 = Q33-Q37, 07 = Q38, 08 = Q39 start date, Q40 quote.
 - ✅ v0.4.2 — "Linalysis account activated" question removed (no longer required). Start date is now Q39, quote Q41.
