@@ -5,7 +5,7 @@ import { Check, CircleDot, Circle, Send, Sparkles, ArrowRight, Download, AlertCi
 
 // ============================================================================
 // GERSHON CONSULTING — INTERACTIVE ONBOARDING FORM
-// Prototype for form.gershonCRM.com
+// Gershon Welcome — served at welcome.gershon.ai (formerly form.gershonCRM.com)
 // ============================================================================
 
 const BRAND = {
@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.4.6';
+const APP_VERSION = 'v0.4.7';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -812,7 +812,7 @@ export default function GershonOnboarding() {
 
     const html = `<!doctype html>
 <html><head><meta charset="utf-8" />
-<title>Gershon Onboarding · ${escape(companyName)}</title>
+<title>Gershon Welcome · ${escape(companyName)}</title>
 <style>
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
@@ -859,7 +859,7 @@ export default function GershonOnboarding() {
       <div class="brand-mark"><span style="font-weight:800">G</span></div>
       <div>
         <div class="brand-name">Gershon Consulting</div>
-        <div class="brand-title">Client Onboarding Intake</div>
+        <div class="brand-title">Gershon Welcome</div>
       </div>
     </div>
     <div class="meta">
@@ -870,7 +870,7 @@ export default function GershonOnboarding() {
   </div>
 
   <h1>Onboarding summary for <em>${escape(companyName)}</em></h1>
-  <p class="lead">All answers captured during the conversational intake on form.gershoncrm.com. This document is the authoritative reference for the campaign launch.</p>
+  <p class="lead">All answers captured during the conversational intake on welcome.gershon.ai. This document is the authoritative reference for the campaign launch.</p>
 
   ${sectionsHtml}
 
@@ -895,7 +895,7 @@ export default function GershonOnboarding() {
     <div class="sig-foot">By signing, this intake is binding on the project.</div>
   </div>
 
-  <div class="foot">Gershon Consulting LLC · Delaware · Est. 2013 · form.gershoncrm.com</div>
+  <div class="foot">Gershon Consulting LLC · Delaware · Est. 2013 · welcome.gershon.ai</div>
 
   <script>setTimeout(function(){ window.print(); }, 350);</script>
 </body></html>`;
@@ -976,7 +976,7 @@ export default function GershonOnboarding() {
             </div>
             <div>
               <div className="mono" style={{ fontSize: 10, color: BRAND.muted, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Gershon Consulting</div>
-              <div className="serif" style={{ fontSize: 18, fontWeight: 500, color: BRAND.ink, marginTop: 1 }}>Client Onboarding</div>
+              <div className="serif" style={{ fontSize: 18, fontWeight: 500, color: BRAND.ink, marginTop: 1 }}>Welcome</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1094,7 +1094,7 @@ function UrlIntakeScreen({ onAnalyze, onSkip, error }) {
     <div className="fade-in" style={{ maxWidth: 1280, margin: '0 auto', padding: '72px 32px' }}>
       <div style={{ maxWidth: 720 }}>
         <div className="mono" style={{ fontSize: 11, color: BRAND.red, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 28 }}>
-          — Onboarding Intake · ~3 min
+          — Welcome · ~3 min
         </div>
         <h1 className="serif" style={{ fontSize: 56, lineHeight: 1.05, fontWeight: 400, color: BRAND.ink, margin: 0, letterSpacing: '-0.02em' }}>
           We do the homework. <span style={{ fontStyle: 'italic', color: BRAND.red }}>You just review.</span>
