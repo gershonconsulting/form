@@ -60,3 +60,11 @@ DevTools console must be clean, then run one real research on a test URL.
 ❌ Commit a regenerated package-lock.json (see PENDING).
 
 2026-11-06 nightly: "Target(s)" wording -> "Prospect(s)" in the visible form text (section 04 + labels), v0.2.1 ✅ ready to test on preview (PR #9)
+
+2026-11-17 nightly (branch nightly/2026-11-17-form-missing-panel)
+✅ v0.4.5 (PR #17) merged + LIVE on welcome.gershon.ai: completed-form email goes to report@gershonconsulting.com
+   (fixed in lib/email.ts; the GERSHON_NOTIFY_TO Pages setting is now ignored). Internal email only, nothing sent to clients.
+✅ v0.4.6 (PR #18 content, rebased on main after #17; version conflict resolved, kept v0.4.6): the red "still missing"
+   box is interactive (answers, acknowledgments, ToS, signature name/date can be filled in the box). npm run build passes.
+   Replaces PR #18 (closed as superseded).
+❌ No automated tests in this repo (build only). One real end-to-end submit on the live site would confirm the report@ email.
