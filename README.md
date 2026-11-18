@@ -1,12 +1,12 @@
-# form.gershonCRM.com
+# Gershon Welcome (welcome.gershon.ai, formerly form.gershoncrm.com)
 
 Conversational client onboarding for Gershon Consulting.
 
 ## Stack
 - **Framework**: Next.js 14 (App Router)
-- **Hosting**: Vercel  
-- **Database**: Supabase
-- **DNS**: Cloudflare (gray cloud CNAME to Vercel)
+- **Hosting**: Cloudflare Pages project `gershon-form` (@cloudflare/next-on-pages, edge runtime; push to `main` = deploy)
+- **Storage**: Airtable (submissions + quote attachment), Resend for the notification email
+- **DNS**: Cloudflare (welcome.gershon.ai)
 - **AI**: Claude Sonnet 4 via Anthropic API with web_search tool
 
 ## Setup
@@ -22,14 +22,10 @@ npm run dev
 | Variable | Description |
 |---|---|
 | ANTHROPIC_API_KEY | Server-side only — do NOT prefix with NEXT_PUBLIC_ |
-| SUPABASE_URL | Supabase project URL |
-| SUPABASE_SERVICE_ROLE_KEY | Server-side only — do NOT prefix with NEXT_PUBLIC_ |
+| AIRTABLE_* | See .env.example (set in Cloudflare, never in the repo) |
+| RESEND_API_KEY | Server-side only |
 | NEXT_PUBLIC_SITE_URL | Public site URL |
-
-## Supabase Schema
-
-See form_gershoncrm_setup_for_charles.md Section 6 for the full SQL schema.
 
 ## Deployment
 
-See form_gershoncrm_setup_for_charles.md for the full step-by-step deployment guide.
+See HANDOFF.txt and STATUS.md (current version v0.4.7). form_gershoncrm_setup_for_charles.md is the old Vercel + Supabase guide and is outdated.
