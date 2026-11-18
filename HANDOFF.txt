@@ -1,4 +1,4 @@
-form.gershoncrm.com — HANDOFF (updated 2026-10-22, v0.2.0, branch nightly/2026-10-22-form-hydration)
+form.gershoncrm.com — HANDOFF (updated 2026-11-18, v0.4.7; live as welcome.gershon.ai, formerly form.gershoncrm.com)
 ==========================================
 
 WHAT IT IS
@@ -9,13 +9,13 @@ Single page: app/page.tsx -> components/GershonOnboarding.tsx (all UI). API rout
 
 STACK / DEPLOY
 - Next.js 14.2.15 (app router), React 18, edge runtime for every API route.
-- Hosting: most likely Cloudflare Pages project "gershon-form" via @cloudflare/next-on-pages (pages:* scripts, edge
-  runtime, NODE_VERSION note in .env.example). README.md and form_gershoncrm_setup_for_charles.md still describe the
-  original Vercel + Supabase setup and are outdated. Charles: confirm which host serves form.gershoncrm.com.
-  No branch previews.
+- Hosting: Cloudflare Pages project "gershon-form" (Git-connected, push to main = deploy; STATUS.md) via
+  @cloudflare/next-on-pages (pages:* scripts, edge runtime, NODE_VERSION note in .env.example). Live URL is now
+  https://welcome.gershon.ai (renamed Gershon Welcome in v0.4.7). form_gershoncrm_setup_for_charles.md still describes the
+  original Vercel + Supabase setup and is outdated (README.md refreshed 2026-11-18). No branch previews.
 - Env (set in Cloudflare, never in the repo): ANTHROPIC_API_KEY, AIRTABLE_* (see .env.example), RESEND_API_KEY,
   GERSHON_NOTIFY_TO, GERSHON_NOTIFY_FROM.
-- Visible version: header shows "v0.2.0 · BUILD <build time>" (APP_VERSION in GershonOnboarding.tsx + package.json).
+- Visible version: header shows "v0.4.7 · BUILD <build time>" (was v0.2.0 when this note was written) (APP_VERSION in GershonOnboarding.tsx + package.json).
 
 ✅ 2026-11-11 brand red #FE1B04 (nightly) — ready to test after merge. v0.2.2: BRAND red #FE1B04 / dark #d11200 / tint #fff5f5 (was #CC3333 / #A8281F / #F5E0E0) in the form UI, print view and notification email; PDF header was navy, now brand red. Note: PR #8 (v0.3.0 rename) touches the same files/version - expect a small merge conflict.
 
@@ -38,7 +38,7 @@ DONE ✅ (2026-10-22, PR nightly/2026-10-22-form-hydration)
 PENDING ❌
 ❌ No package-lock.json in the repo for now (see the 2026-10-23 section): Cloudflare installs with npm install.
    Ariel: regenerate it on a machine that can push files >250 KB (npm install --package-lock-only, Node 20.11.1).
-❌ The live site still shows "BUILD 2026-07-03": nothing after early July has been deployed (main was not buildable).
+✅ (resolved: main builds and deploys, v0.4.5 confirmed LIVE on welcome.gershon.ai on 2026-11-17) Old note: the live site showed "BUILD 2026-07-03".
    After merging, Charles must trigger a deploy on whichever host serves the site and confirm the env vars above.
 ❌ Research/chat need a live end-to-end test with the real ANTHROPIC_API_KEY after deploy (not possible offline).
 ❌ lib/email.ts footer still says "stored in Supabase" (now Airtable) — cosmetic, internal email only.
@@ -68,3 +68,5 @@ DevTools console must be clean, then run one real research on a test URL.
    box is interactive (answers, acknowledgments, ToS, signature name/date can be filled in the box). npm run build passes.
    Replaces PR #18 (closed as superseded).
 ❌ No automated tests in this repo (build only). One real end-to-end submit on the live site would confirm the report@ email.
+
+2026-11-18 nightly: docs refreshed (version 0.4.7, deploy route Cloudflare Pages project gershon-form via Git push to main, live at welcome.gershon.ai). Header, hosting and stale-build items corrected; README no longer says Vercel/Supabase.
