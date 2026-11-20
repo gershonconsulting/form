@@ -3,15 +3,15 @@ import './globals.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://welcome.gershon.ai'),
-  title: 'Gershon Welcome',
+  title: 'Welcome by Gershon.AI',
   description: 'Complete your onboarding intake for Gershon Consulting.',
-  applicationName: 'Gershon Welcome',
+  applicationName: 'Welcome by Gershon.AI',
   alternates: { canonical: 'https://welcome.gershon.ai/' },
   openGraph: {
-    title: 'Gershon Welcome',
+    title: 'Welcome by Gershon.AI',
     description: 'Complete your onboarding intake for Gershon Consulting.',
     url: 'https://welcome.gershon.ai/',
-    siteName: 'Gershon Welcome',
+    siteName: 'Welcome by Gershon.AI',
     type: 'website',
   },
 };
