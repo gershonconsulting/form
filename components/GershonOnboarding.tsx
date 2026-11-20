@@ -5,7 +5,7 @@ import { Check, CircleDot, Circle, Send, Sparkles, ArrowRight, Download, AlertCi
 
 // ============================================================================
 // GERSHON CONSULTING — INTERACTIVE ONBOARDING FORM
-// Gershon Welcome — served at welcome.gershon.ai (formerly form.gershonCRM.com)
+// Welcome by Gershon.AI — served at welcome.gershon.ai (formerly form.gershonCRM.com)
 // ============================================================================
 
 const BRAND = {
@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.4.7';
+const APP_VERSION = 'v0.4.8';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -812,7 +812,7 @@ export default function GershonOnboarding() {
 
     const html = `<!doctype html>
 <html><head><meta charset="utf-8" />
-<title>Gershon Welcome · ${escape(companyName)}</title>
+<title>Welcome by Gershon.AI · ${escape(companyName)}</title>
 <style>
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
@@ -859,7 +859,7 @@ export default function GershonOnboarding() {
       <div class="brand-mark"><span style="font-weight:800">G</span></div>
       <div>
         <div class="brand-name">Gershon Consulting</div>
-        <div class="brand-title">Gershon Welcome</div>
+        <div class="brand-title">Welcome by Gershon.AI</div>
       </div>
     </div>
     <div class="meta">
@@ -976,7 +976,7 @@ export default function GershonOnboarding() {
             </div>
             <div>
               <div className="mono" style={{ fontSize: 10, color: BRAND.muted, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Gershon Consulting</div>
-              <div className="serif" style={{ fontSize: 18, fontWeight: 500, color: BRAND.ink, marginTop: 1 }}>Welcome</div>
+              <div className="serif" style={{ fontSize: 18, fontWeight: 500, color: BRAND.ink, marginTop: 1 }}>Welcome by Gershon.AI</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
