@@ -1,4 +1,4 @@
-form.gershoncrm.com — HANDOFF (updated 2026-11-18, v0.4.7; live as welcome.gershon.ai, formerly form.gershoncrm.com)
+form.gershoncrm.com — HANDOFF (updated 2026-11-18, v0.4.8; live as welcome.gershon.ai, formerly form.gershoncrm.com)
 ==========================================
 
 WHAT IT IS
@@ -15,7 +15,7 @@ STACK / DEPLOY
   original Vercel + Supabase setup and is outdated (README.md refreshed 2026-11-18). No branch previews.
 - Env (set in Cloudflare, never in the repo): ANTHROPIC_API_KEY, AIRTABLE_* (see .env.example), RESEND_API_KEY,
   GERSHON_NOTIFY_TO, GERSHON_NOTIFY_FROM.
-- Visible version: header shows "v0.4.7 · BUILD <build time>" (was v0.2.0 when this note was written) (APP_VERSION in GershonOnboarding.tsx + package.json).
+- Visible version: header shows "v0.4.8 · BUILD <build time>" (was v0.2.0 when this note was written) (APP_VERSION in GershonOnboarding.tsx + package.json).
 
 ✅ 2026-11-11 brand red #FE1B04 (nightly) — ready to test after merge. v0.2.2: BRAND red #FE1B04 / dark #d11200 / tint #fff5f5 (was #CC3333 / #A8281F / #F5E0E0) in the form UI, print view and notification email; PDF header was navy, now brand red. Note: PR #8 (v0.3.0 rename) touches the same files/version - expect a small merge conflict.
 
@@ -70,3 +70,5 @@ DevTools console must be clean, then run one real research on a test URL.
 ❌ No automated tests in this repo (build only). One real end-to-end submit on the live site would confirm the report@ email.
 
 2026-11-18 nightly: docs refreshed (version 0.4.7, deploy route Cloudflare Pages project gershon-form via Git push to main, live at welcome.gershon.ai). Header, hosting and stale-build items corrected; README no longer says Vercel/Supabase.
+
+2026-11-20 nightly: v0.4.8 wording only - titles and wordmark (layout metadata, header, print/PDF summary page) now "Welcome by Gershon.AI" (was "Gershon Welcome"). Emails untouched (save-progress subject still says Gershon Welcome). Version in package.json + APP_VERSION in GershonOnboarding.tsx. npm run build passes.
