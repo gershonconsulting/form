@@ -1,4 +1,4 @@
-# Gershon Welcome (welcome.gershon.ai, formerly form.gershoncrm.com)
+# Welcome by Gershon.AI (welcome.gershon.ai, formerly form.gershoncrm.com)
 
 Conversational client onboarding for Gershon Consulting.
 
@@ -28,4 +28,4 @@ npm run dev
 
 ## Deployment
 
-See HANDOFF.txt and STATUS.md (current version v0.4.7). form_gershoncrm_setup_for_charles.md is the old Vercel + Supabase guide and is outdated.
+See HANDOFF.txt and STATUS.md (current version v0.4.8). form_gershoncrm_setup_for_charles.md is the old Vercel + Supabase guide and is outdated.
