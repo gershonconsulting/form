@@ -30,7 +30,7 @@ const BUILD_LABEL = BUILD_TIME === 'dev'
   : `BUILD ${BUILD_TIME.replace('T', ' ').slice(0, 16).replace(/-/g, '‑')}`;
 
 // Visible app version — bump on every UI change so previews are easy to tell apart.
-const APP_VERSION = 'v0.4.8';
+const APP_VERSION = 'v0.5.0';
 
 // Full field schema derived from the original Google Form
 const SECTIONS = [
@@ -720,8 +720,12 @@ export default function GershonOnboarding() {
   );
   const canSign = allAcknowledged && termsAccepted && signatureName.trim().length >= 2 && signatureDate && allRequiredFieldsFilled;
 
+  const [submitting, setSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState<any>(null);
   const sign = async () => {
-    if (!canSign) return;
+    if (!canSign || submitting) return;
+    setError(null);
+    setSubmitting(true);
     try {
       const res = await fetch('/api/submit', {
         method: 'POST',
@@ -742,14 +746,18 @@ export default function GershonOnboarding() {
             : undefined,
         }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).error || 'Failed');
+        throw new Error((data as any).error || 'Submission failed. Please try again.');
       }
+      setSubmitResult(data);
       setPhase('signed');
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
     } catch (e: any) {
       console.error('Submit error:', e);
-      setError(e?.message || 'Submission failed. Please try again.');
+      setError(e?.message || 'Submission failed. Please try again, or email olivier@gershonconsulting.com.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1039,6 +1047,8 @@ export default function GershonOnboarding() {
           setSignatureDate={setSignatureDate}
           canSign={canSign}
           sign={sign}
+          submitting={submitting}
+          submitError={error}
           researchSource={researchSource}
           uploadQuoteFile={uploadQuoteFile}
           uploadingFile={uploadingFile}
@@ -1048,7 +1058,7 @@ export default function GershonOnboarding() {
 
       {/* ============ PHASE: SIGNED ============ */}
       {phase === 'signed' && (
-        <SignedScreen responses={responses} signatureName={signatureName} signatureDate={signatureDate} exportJSON={exportJSON} exportPDF={exportPDF} />
+        <SignedScreen responses={responses} signatureName={signatureName} signatureDate={signatureDate} exportJSON={exportJSON} exportPDF={exportPDF} result={submitResult} />
       )}
     </div>
   );
@@ -1618,7 +1628,7 @@ function findFieldDef(fieldId) {
 // Review Screen
 // ============================================================================
 
-function ReviewScreen({ responses, setResponses, editingField, setEditingField, editBuffer, setEditBuffer, acknowledgments, setAcknowledgments, termsAccepted, setTermsAccepted, signatureName, setSignatureName, signatureDate, setSignatureDate, canSign, sign, backToChat, researchSource, uploadQuoteFile, uploadingFile }) {
+function ReviewScreen({ responses, setResponses, editingField, setEditingField, editBuffer, setEditBuffer, acknowledgments, setAcknowledgments, termsAccepted, setTermsAccepted, signatureName, setSignatureName, signatureDate, setSignatureDate, canSign, sign, submitting = false, submitError = null, backToChat, researchSource, uploadQuoteFile, uploadingFile }) {
 
   const startEdit = (fieldId) => {
     setEditingField(fieldId);
@@ -2094,12 +2104,18 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
           <button
             className="btn-primary"
             onClick={sign}
-            disabled={!canSign}
+            disabled={!canSign || submitting}
+            aria-busy={submitting}
             style={{ padding: '14px 32px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 10 }}
           >
-            Sign &amp; submit <ArrowRight size={16} />
+            {submitting ? (<>Submitting <span className="dot" /><span className="dot" /><span className="dot" /></>) : (<>Sign &amp; submit <ArrowRight size={16} /></>)}
           </button>
         </div>
+        {submitError && (
+          <div role="alert" className="fade-in" style={{ marginTop: 16, border: `1px solid ${BRAND.red}`, borderRadius: 12, background: BRAND.redLight, padding: '14px 18px', color: BRAND.red, fontSize: 14, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2 }} /> <span>{String(submitError)}</span>
+          </div>
+        )}
         {!canSign && (missingFieldItems.length > 0 || missingOther.length > 0) && (
           <div className="missing-panel" role="status" aria-live="polite" style={{ marginTop: 16, border: `1px solid ${BRAND.red}`, borderRadius: 12, background: BRAND.redLight, padding: '16px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, color: BRAND.red, marginBottom: 10 }}>
@@ -2163,7 +2179,8 @@ function ReviewScreen({ responses, setResponses, editingField, setEditingField, 
 // Signed / Thank you screen
 // ============================================================================
 
-function SignedScreen({ responses, signatureName, signatureDate, exportJSON, exportPDF }) {
+function SignedScreen({ responses, signatureName, signatureDate, exportJSON, exportPDF, result = null }) {
+  const clientEmailed = !!result?.emailed?.client;
   return (
     <div className="fade-in" style={{ maxWidth: 720, margin: '0 auto', padding: '80px 32px', textAlign: 'left' }}>
       <div style={{ width: 56, height: 56, background: BRAND.red, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32 }}>
@@ -2176,7 +2193,7 @@ function SignedScreen({ responses, signatureName, signatureDate, exportJSON, exp
         Thank you, <span style={{ fontStyle: 'italic', color: BRAND.red }}>{(responses.firstName || signatureName.split(' ')[0] || 'there')}</span>.
       </h1>
       <p style={{ fontSize: 17, lineHeight: 1.6, color: BRAND.charcoalLight, marginTop: 24 }}>
-        We've received your onboarding intake for <strong>{responses.companyName || 'your company'}</strong> and it is now binding on this project. A Gershon team member will be in touch within one business day to confirm kickoff and schedule the first weekly update call.
+        We've received your onboarding intake for <strong>{responses.companyName || 'your company'}</strong> and it is now binding on this project.{clientEmailed ? <> A welcome email with a PDF copy of your signed form is on its way to <strong>{responses.email}</strong>.</> : null} A Gershon team member will be in touch shortly to confirm kickoff and schedule the first weekly update call.
       </p>
 
       <div style={{ marginTop: 40, padding: 24, background: BRAND.paper, border: `1px solid ${BRAND.rule}`, borderRadius: 12 }}>
@@ -2214,9 +2231,9 @@ function SignedScreen({ responses, signatureName, signatureDate, exportJSON, exp
 
       <div style={{ marginTop: 32, padding: 20, background: BRAND.cream, border: `1px solid ${BRAND.rule}`, fontSize: 13.5, lineHeight: 1.6, color: BRAND.charcoalLight }}>
         <div className="mono" style={{ fontSize: 10, color: BRAND.red, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>What happens next</div>
-        <div>1. We've stored your intake securely on Gershon's side and a copy was emailed to the Gershon team.</div>
-        <div>2. You'll get a reply within one business day to confirm kickoff and schedule the first weekly update call.</div>
-        <div>3. Save the PDF above for your records — it's the binding reference for the campaign.</div>
+        <div>1. Your signed intake is recorded with Gershon{result?.receiptId ? <> (receipt <span className="mono">{result.receiptId}</span>)</> : null}.</div>
+        <div>2. {clientEmailed ? 'Check your inbox: your welcome email includes the PDF of this form, the official received date and your campaign start date.' : 'Use the button above to download a PDF copy for your records.'}</div>
+        <div>3. Our team is setting up your onboarding and will contact you to confirm kickoff and schedule the first weekly update call.</div>
       </div>
 
       <div style={{ marginTop: 64, paddingTop: 24, borderTop: `1px solid ${BRAND.rule}`, display: 'flex', alignItems: 'center', gap: 10 }}>

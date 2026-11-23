@@ -72,3 +72,9 @@ DevTools console must be clean, then run one real research on a test URL.
 2026-11-18 nightly: docs refreshed (version 0.4.7, deploy route Cloudflare Pages project gershon-form via Git push to main, live at welcome.gershon.ai). Header, hosting and stale-build items corrected; README no longer says Vercel/Supabase.
 
 2026-11-20 nightly: v0.4.8 wording only - titles and wordmark (layout metadata, header, print/PDF summary page) now "Welcome by Gershon.AI" (was "Gershon Welcome"). Emails untouched (save-progress subject still says Gershon Welcome). Version in package.json + APP_VERSION in GershonOnboarding.tsx. npm run build passes.
+
+2026-11-23: v0.5.0 full submit flow (branch feat/submit-flow-v0.5.0)
+✅ Root cause of "Submit does nothing": live /api/submit returned 500 "AIRTABLE_PAT not set" and the Review screen never displayed `error`. Now shown + "Submitting…" state.
+✅ Server: Airtable save (non-fatal) -> PDF (lib/pdf.ts, pdf-lib added to deps) -> client welcome + report@ + Aina (ainarama@) emails, all with PDF, sender welcome@gershon.ai.
+✅ Tested: mocked Airtable/Resend harness (all OK / Airtable down / both down), PDF rendered and checked, npm run build + next-on-pages build pass.
+❌ Set AIRTABLE_PAT (scope data.records:write on app7zEt3FmwP8jMJj) and RESEND_API_KEY on Pages gershon-form, then one real test submit.
