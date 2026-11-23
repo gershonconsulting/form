@@ -23,7 +23,7 @@ Conversational client onboarding for Gershon Consulting — live at https://welc
 - ✅ v0.2.2 — brand red #FE1B04 (UI, email, PDF).
 
 ## Open
-- ❌ BLOCKER (found 2026-11-23): Pages project gershon-form has no AIRTABLE_PAT — every live submit has returned 500 "AIRTABLE_PAT not set"; Submissions table has 0 rows. RESEND_API_KEY presence unverified. Both must be set in Cloudflare Pages → gershon-form → Settings → Variables (production).
+- ✅ 2026-11-23 AIRTABLE_PAT + RESEND_API_KEY set on Pages gershon-form (redeployed).
 - ❌ Header on phones is cramped (version stamp + "Secured · Binding" wrap) — pre-existing.
 - ❌ Old worker `gershon-welcome` (Ovattia CF account) is obsolete; welcome.gershon.ai is served by Pages.
 - ❌ `tsc --noEmit` reports pre-existing implicit-any errors and missing `pdf-lib` types (build still passes).
