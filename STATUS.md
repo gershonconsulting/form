@@ -1,12 +1,13 @@
 # gershon-form — STATUS
 
-Last updated: 2026-11-20 · App v0.4.8
+Last updated: 2026-11-23 · App v0.5.0
 
 ## What it is
 Conversational client onboarding for Gershon Consulting — live at https://welcome.gershon.ai
 (Cloudflare Pages project `gershon-form`, Git-connected to this repo: push to `main` = deploy).
 
 ## State
+- ⏳ v0.5.0 (PR, awaiting Olivier's OK because it emails clients) — Submit now does the full flow: button shows "Submitting…", errors are shown on screen (they were silently swallowed: the "nothing happens" bug), row saved in Airtable, signed-intake PDF built server-side (pdf-lib), 3 emails via Resend from welcome@gershon.ai (only verified domain): client welcome (PDF, official received date, campaign start date), report@ copy (PDF, flagged NOT SAVED IN AIRTABLE if Airtable failed), Aina onboarding task (ainarama@). Twitter password never reproduced in PDF/emails. Submission only fails if Airtable AND report@ email both fail.
 - ✅ v0.4.8 — naming: page titles and header/print wordmark read "Welcome by Gershon.AI" (was "Gershon Welcome"). Emails (resume-link subject etc.) unchanged. `npm run build` passes.
 - ✅ v0.4.6 — "still missing" box is interactive: each missing answer, acknowledgment, ToS, signature name and date can be filled right in the box, and the item disappears as soon as it is provided.
 - ✅ v0.4.5 — completed-form email now always goes to report@gershonconsulting.com (was welcome@ via the GERSHON_NOTIFY_TO Pages setting, now ignored).
@@ -22,6 +23,7 @@ Conversational client onboarding for Gershon Consulting — live at https://welc
 - ✅ v0.2.2 — brand red #FE1B04 (UI, email, PDF).
 
 ## Open
+- ❌ BLOCKER (found 2026-11-23): Pages project gershon-form has no AIRTABLE_PAT — every live submit has returned 500 "AIRTABLE_PAT not set"; Submissions table has 0 rows. RESEND_API_KEY presence unverified. Both must be set in Cloudflare Pages → gershon-form → Settings → Variables (production).
 - ❌ Header on phones is cramped (version stamp + "Secured · Binding" wrap) — pre-existing.
 - ❌ Old worker `gershon-welcome` (Ovattia CF account) is obsolete; welcome.gershon.ai is served by Pages.
 - ❌ `tsc --noEmit` reports pre-existing implicit-any errors and missing `pdf-lib` types (build still passes).

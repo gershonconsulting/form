@@ -1,196 +1,200 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from 'pdf-lib';
 
-interface FormResponses {
-  [key: string]: string | string[] | undefined;
-}
+// Signed-intake PDF: attached to the client welcome email, the report@ copy and
+// the note to Aina. Built server-side (edge runtime, pure JS) at submit time.
+// Field list mirrors SECTIONS in components/GershonOnboarding.tsx (v0.4.x).
 
-// `id` is the field id used by the form (components/GershonOnboarding.tsx).
-// `fallback` is an older/alternate id still produced by the chat assistant
-// (lib/prompts.ts) or by submissions saved before the rename.
-interface PdfField { id: string; label: string; fallback?: string }
+type Responses = Record<string, any>;
 
-const SECTIONS: { title: string; fields: PdfField[] }[] = [
-  { title: '01 — About You', fields: [
-    { id: 'companyName', label: 'Company Name' },
-    { id: 'firstName', label: 'First Name' },
-    { id: 'lastName', label: 'Last Name' },
-    { id: 'title', label: 'Title' },
-    { id: 'email', label: 'Email' },
-    { id: 'mobilePhone', label: 'Mobile Phone' },
+export const SECRET_FIELDS = new Set(['twitterCredentials']);
+
+const SECTIONS: { title: string; fields: [string, string][] }[] = [
+  { title: '01 - About You', fields: [
+    ['companyName', 'Company name'], ['firstName', 'First name'], ['lastName', 'Last name'],
+    ['title', 'Title'], ['email', 'Email'], ['mobilePhone', 'Mobile phone'],
   ]},
-  { title: '02 — Your Business', fields: [
-    { id: 'businessType', label: 'Business Type' },
-    { id: 'industry', label: 'Industry' },
-    { id: 'website', label: 'Website' },
-    { id: 'expectations', label: 'Expectations' },
-    { id: 'productLinks', label: 'Product/Service Links' },
+  { title: '02 - Your Business', fields: [
+    ['businessType', 'Type of business'], ['industry', 'Industry'], ['expectations', 'Expectations for this campaign'],
+    ['productLinks', 'Product/service page links'], ['website', 'Website'],
   ]},
-  { title: '03 — Campaign Scope', fields: [
-    { id: 'campaignDuration', label: 'Campaign Duration' },
-    { id: 'services', fallback: 'campaignServices', label: 'Services Selected' },
-    { id: 'meetingsPerMonth', label: 'Monthly Meetings Goal' },
+  { title: '03 - Campaign Scope', fields: [
+    ['campaignDuration', 'Campaign duration'],
   ]},
-  { title: '04 — Prospects', fields: [
-    { id: 'targetDefinition', label: 'Ideal Prospect' },
-    { id: 'targetLocations', fallback: 'targetGeography', label: 'Prospect Locations' },
-    { id: 'targetIndustries', label: 'Prospect Industries' },
-    { id: 'targetTitles', label: 'Prospect Job Titles' },
-    { id: 'targetHeadcount', label: 'Prospect Company Headcount' },
-    { id: 'targetRevenue', label: 'Prospect Revenue Range' },
+  { title: '04 - Prospects', fields: [
+    ['targetLocations', 'Prospect location'], ['targetDefinition', 'Prospect definition'],
+    ['targetIndustries', 'Prospect industries'], ['targetTitles', 'Prospect job titles (ICP)'],
+    ['initialTemplate', 'Current pitch to new prospects'], ['idealLinkedInLeads', '5 LinkedIn links of existing clients'],
+    ['targetHeadcount', 'Prospect headcount range'], ['targetRevenue', 'Prospect revenue range'],
   ]},
-  { title: '05 — Social Networks (PROMOTE)', fields: [
-    { id: 'top5Highlights', label: 'Top 5 Highlights' },
-    { id: 'dontWantContent', label: 'Content NOT Wanted' },
-    { id: 'googleKeywords', label: 'Google Keywords' },
+  { title: '05 - Social Networks (PROMOTE)', fields: [
+    ['top5Highlights', 'Top 5 things to highlight'], ['otherContent', 'Other content to include'],
+    ['dontWantContent', 'Content NOT wanted'], ['twitterHashtags', 'Twitter hashtags'],
+    ['competitorTwitterAccounts', 'Competitor Twitter accounts'], ['googleKeywords', 'Google keywords'],
+    ['photosLink', 'Photos link'], ['royaltyFreeConsent', 'Royalty-free photos consent'],
+    ['linkedInPageAdmin', 'LinkedIn Page admin added'], ['facebookPageAdmin', 'Facebook Page admin added'],
+    ['googleBusinessAdmin', 'Google Business admin added'], ['twitterCredentials', 'Twitter login'],
   ]},
-  { title: '06 — LinkedIn Profile (NETWORK)', fields: [
-    { id: 'companyLinkedIn', label: 'Company LinkedIn' },
-    { id: 'personalLinkedIn', label: 'Personal LinkedIn' },
-    { id: 'calendlyLink', label: 'Calendly Link' },
-    { id: 'competitors', label: 'Top Competitors' },
+  { title: '06 - LinkedIn Profile (NETWORK)', fields: [
+    ['companyLinkedIn', 'Company LinkedIn page'], ['personalLinkedIn', 'Personal LinkedIn page'],
+    ['salesNavActive', 'Sales Navigator activated'], ['calendlyLink', 'Calendly link'],
+    ['competitors', 'Top 5 competitors'],
   ]},
-  { title: '07 — Comments', fields: [
-    { id: 'additionalComments', label: 'Additional Comments' },
-  ]},
-  { title: '08 — Timing & Quote', fields: [
-    { id: 'startDate', label: 'Campaign Start Date' },
-    { id: 'quoteReference', label: 'Quote Reference' },
-  ]},
+  { title: '07 - Comments', fields: [['additionalComments', 'Additional comments']] },
+  { title: '08 - Timing & Quote', fields: [['startDate', 'Campaign start date'], ['quoteReference', 'Validated quote']] },
 ];
 
-function getValue(responses: FormResponses, id: string, fallback?: string): string {
-  const primary = responses[id];
-  const val = primary && primary.length ? primary : (fallback ? responses[fallback] : undefined);
-  if (!val) return '—';
-  if (Array.isArray(val)) return val.join(', ');
-  return String(val);
+export const ACK_LABELS: [string, string][] = [
+  ['ack_3month', 'Minimum 3-month engagement'],
+  ['ack_notice', 'After 3 months, stop any time with one-month notice'],
+  ['ack_weekly', 'Weekly update call at a fixed time'],
+  ['ack_payment', 'Invoices due at start of month; 2%/month late fee'],
+];
+
+function pretty(v: any): string {
+  const m = String(v ?? '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return String(v ?? '').trim() || '-';
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 }
 
-export async function generateOnboardingPDF(responses: FormResponses): Promise<Uint8Array> {
-  const pdfDoc = await PDFDocument.create();
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+export function displayValue(id: string, v: any): string {
+  if (v === undefined || v === null || String(v).trim() === '') return '';
+  if (SECRET_FIELDS.has(id)) return 'Provided (kept private, not reproduced here)';
+  if (Array.isArray(v)) return v.join(', ');
+  return String(v);
+}
 
-  const pageWidth = 595;
-  const pageHeight = 842;
-  const margin = 50;
-  const contentWidth = pageWidth - margin * 2;
+// Helvetica (WinAnsi) cannot encode every character; swap the common ones and
+// replace anything else so one odd character never breaks the whole PDF.
+function clean(s: string, font: PDFFont): string {
+  const mapped = s
+    .replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
+    .replace(/[–—]/g, '-').replace(/…/g, '...')
+    .replace(/[→➜➡]/g, '->').replace(/\t/g, ' ');
+  let out = '';
+  for (const ch of mapped) {
+    try { font.encodeText(ch); out += ch; } catch { out += '?'; }
+  }
+  return out;
+}
 
-  const colors = {
-    navy: rgb(0.996, 0.106, 0.016), // brand red #FE1B04 (was navy)
-    gold: rgb(0.8, 0.6, 0.1),
-    gray: rgb(0.5, 0.5, 0.5),
-    lightGray: rgb(0.95, 0.95, 0.95),
-    black: rgb(0, 0, 0),
-    white: rgb(1, 1, 1),
+export async function generateOnboardingPDF(
+  responses: Responses,
+  meta: {
+    signature?: { name: string; date: string };
+    acknowledgments?: Record<string, boolean>;
+    termsAccepted?: boolean;
+    receiptId?: string;
+    receivedOn?: string;
+  } = {},
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.setTitle(`Gershon Consulting - Onboarding - ${responses.companyName || 'Client'}`);
+  doc.setAuthor('Gershon Consulting');
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const reg = await doc.embedFont(StandardFonts.Helvetica);
+
+  const W = 595, H = 842, M = 50, CW = W - M * 2;
+  const red = rgb(0.996, 0.106, 0.016);
+  const ink = rgb(0.114, 0.114, 0.122);
+  const gray = rgb(0.43, 0.43, 0.45);
+  const rule = rgb(0.9, 0.91, 0.92);
+  const white = rgb(1, 1, 1);
+
+  let page: PDFPage = doc.addPage([W, H]);
+  let y = H - M;
+
+  const ensure = (need: number) => {
+    if (y - need < M + 30) { page = doc.addPage([W, H]); y = H - M; }
   };
 
-  let page = pdfDoc.addPage([pageWidth, pageHeight]);
-  let y = pageHeight - margin;
-
-  const checkNewPage = (neededHeight: number) => {
-    if (y - neededHeight < margin + 30) {
-      page = pdfDoc.addPage([pageWidth, pageHeight]);
-      y = pageHeight - margin;
-    }
-  };
-
-  const drawText = (
-    text: string,
-    x: number,
-    yPos: number,
-    opts: { font?: typeof boldFont; size?: number; color?: ReturnType<typeof rgb>; maxWidth?: number }
-  ) => {
-    const font = opts.font ?? regularFont;
-    const size = opts.size ?? 10;
-    const color = opts.color ?? colors.black;
-    const maxWidth = opts.maxWidth ?? contentWidth;
-
-    // Simple word wrap
-    const words = text.split(' ');
-    let line = '';
-    let currentY = yPos;
-
-    for (const word of words) {
-      const testLine = line ? `${line} ${word}` : word;
-      const testWidth = font.widthOfTextAtSize(testLine, size);
-      if (testWidth > maxWidth && line) {
-        page.drawText(line, { x, y: currentY, size, font, color });
-        currentY -= size + 3;
-        line = word;
-      } else {
-        line = testLine;
+  const wrap = (text: string, font: PDFFont, size: number, maxW: number): string[] => {
+    const lines: string[] = [];
+    for (const raw of text.split(/\r?\n/)) {
+      const words = clean(raw, font).split(' ');
+      let line = '';
+      for (const w of words) {
+        const t = line ? `${line} ${w}` : w;
+        if (font.widthOfTextAtSize(t, size) > maxW && line) { lines.push(line); line = w; }
+        else line = t;
       }
+      lines.push(line);
     }
-    if (line) {
-      page.drawText(line, { x, y: currentY, size, font, color });
-      currentY -= size + 3;
-    }
-    return yPos - currentY; // return height used
+    return lines;
   };
 
-  // ─── Cover / Header ─────────────────────────────────────────────────────────────────
-  page.drawRectangle({ x: 0, y: pageHeight - 100, width: pageWidth, height: 100, color: colors.navy });
-  page.drawText('GERSHON CONSULTING', { x: margin, y: pageHeight - 45, size: 18, font: boldFont, color: colors.white });
-  page.drawText('Onboarding Summary', { x: margin, y: pageHeight - 68, size: 12, font: regularFont, color: colors.gold });
-
-  const clientName = `${getValue(responses, 'firstName')} ${getValue(responses, 'lastName')}`;
-  const company = getValue(responses, 'companyName');
-  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-  page.drawText(`Client: ${clientName} — ${company}`, { x: margin, y: pageHeight - 88, size: 9, font: regularFont, color: rgb(0.8, 0.8, 0.8) });
-
-  y = pageHeight - 120;
-
-  page.drawText(`Submitted: ${date}`, { x: margin, y, size: 9, font: regularFont, color: colors.gray });
-  y -= 25;
-
-  // ─── Sections ───────────────────────────────────────────────────────────────────
-  for (const section of SECTIONS) {
-    // Check if any field in section has data
-    const hasData = section.fields.some(f => getValue(responses, f.id, f.fallback) !== '—');
-    if (!hasData) continue;
-
-    checkNewPage(40);
-
-    // Section header
-    page.drawRectangle({ x: margin, y: y - 18, width: contentWidth, height: 22, color: colors.navy });
-    page.drawText(section.title, { x: margin + 8, y: y - 12, size: 10, font: boldFont, color: colors.white });
-    y -= 30;
-
-    for (const field of section.fields) {
-      const value = getValue(responses, field.id, field.fallback);
-      if (value === '—' && !['companyName', 'firstName', 'email'].includes(field.id)) continue;
-
-      checkNewPage(30);
-
-      // Label
-      page.drawText(field.label, { x: margin, y, size: 8, font: boldFont, color: colors.navy });
-      y -= 13;
-
-      // Value (with word wrap)
-      const heightUsed = drawText(value, margin + 8, y, { size: 9, color: colors.black, maxWidth: contentWidth - 8 });
-      y -= Math.max(heightUsed, 12) + 5;
-
-      // Divider
-      page.drawLine({ start: { x: margin, y }, end: { x: margin + contentWidth, y }, thickness: 0.3, color: colors.lightGray });
-      y -= 8;
+  const para = (text: string, opts: { font?: PDFFont; size?: number; color?: any; x?: number; maxW?: number } = {}) => {
+    const font = opts.font || reg, size = opts.size || 9.5, x = opts.x ?? M, maxW = opts.maxW ?? CW;
+    for (const l of wrap(text, font, size, maxW)) {
+      ensure(size + 4);
+      page.drawText(l, { x, y, size, font, color: opts.color || ink });
+      y -= size + 3.5;
     }
+  };
 
-    y -= 10;
+  // Header band
+  page.drawRectangle({ x: 0, y: H - 96, width: W, height: 96, color: red });
+  page.drawText('GERSHON CONSULTING', { x: M, y: H - 44, size: 18, font: bold, color: white });
+  page.drawText('Client Onboarding - Signed Intake', { x: M, y: H - 66, size: 11, font: reg, color: white });
+  const company = clean(String(responses.companyName || 'Client'), reg);
+  page.drawText(company, { x: M, y: H - 84, size: 9, font: reg, color: white });
+  y = H - 120;
+
+  const receivedOn = meta.receivedOn || new Date().toISOString().slice(0, 10);
+  para(`Form received: ${pretty(receivedOn)}    Campaign start date: ${pretty(responses.startDate)}`, { font: bold, size: 10 });
+  if (meta.receiptId) para(`Receipt: ${meta.receiptId}`, { size: 8.5, color: gray });
+  y -= 10;
+
+  const section = (title: string) => {
+    ensure(40);
+    page.drawRectangle({ x: M, y: y - 6, width: CW, height: 20, color: red });
+    page.drawText(clean(title, bold), { x: M + 8, y: y, size: 10, font: bold, color: white });
+    y -= 26;
+  };
+
+  for (const s of SECTIONS) {
+    const rows = s.fields
+      .map(([id, label]) => [label, displayValue(id, responses[id])] as const)
+      .filter(([, v]) => v);
+    if (!rows.length) continue;
+    section(s.title);
+    for (const [label, value] of rows) {
+      ensure(28);
+      page.drawText(clean(label, bold), { x: M, y, size: 8, font: bold, color: red });
+      y -= 12;
+      para(value, { x: M + 6, maxW: CW - 6 });
+      y -= 3;
+      page.drawLine({ start: { x: M, y: y + 2 }, end: { x: M + CW, y: y + 2 }, thickness: 0.4, color: rule });
+      y -= 7;
+    }
+    y -= 6;
   }
 
-  // ─── Footer on all pages ────────────────────────────────────────────────────────────────
-  const pages = pdfDoc.getPages();
+  section('Acknowledgments & Signature');
+  for (const [id, label] of ACK_LABELS) {
+    para(`[${meta.acknowledgments?.[id] ? 'X' : ' '}] ${label}`);
+  }
+  para(`[${meta.termsAccepted ? 'X' : ' '}] Agreed to Gershon Consulting Terms of Service`);
+  y -= 8;
+  if (meta.signature) {
+    para(`Signed by: ${meta.signature.name}`, { font: bold, size: 11 });
+    para(`Signature date: ${meta.signature.date}`);
+  }
+
+  const pages = doc.getPages();
   pages.forEach((pg, i) => {
-    pg.drawText(`Page ${i + 1} of ${pages.length}  |  Confidential — Gershon Consulting`, {
-      x: margin,
-      y: 20,
-      size: 7,
-      font: regularFont,
-      color: colors.gray,
+    pg.drawText(`Page ${i + 1} of ${pages.length}  |  Confidential - Gershon Consulting LLC`, {
+      x: M, y: 22, size: 7, font: reg, color: gray,
     });
   });
 
-  return pdfDoc.save();
+  return doc.save();
+}
+
+export function toBase64(bytes: Uint8Array): string {
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
 }
