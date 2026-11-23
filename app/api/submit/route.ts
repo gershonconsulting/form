@@ -6,6 +6,7 @@ import {
 } from "@/lib/airtable";
 import {
   hasEmailKey,
+  isTestCompany,
   sendClientWelcome,
   sendIntakeNotification,
   sendOnboardingTask,
@@ -128,6 +129,7 @@ export async function POST(req: NextRequest) {
     pdf,
     savedToAirtable,
     airtableError,
+    test: isTestCompany(responses.companyName),
   };
   const emailed = { report: false, client: false, onboarding: false };
   const emailErrors: string[] = [];

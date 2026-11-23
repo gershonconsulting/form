@@ -32,6 +32,7 @@ type IntakeArgs = {
   pdf?: Attachment;
   savedToAirtable?: boolean;
   airtableError?: string;
+  test?: boolean;
 };
 
 const esc = (s: any) =>
@@ -63,6 +64,12 @@ export function prettyDate(v: any): string {
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
 }
 
+// Test submissions: company name starting with "[TEST]" -> every email goes to
+// report@ only (subject prefixed), so live tests never reach a client or Aina.
+export function isTestCompany(name: any): boolean {
+  return /^\s*\[TEST\]/i.test(String(name ?? ""));
+}
+
 export async function sendEmail(args: {
   to: string | string[];
   subject: string;
@@ -70,6 +77,7 @@ export async function sendEmail(args: {
   text?: string;
   attachments?: Attachment[];
   replyTo?: string;
+  test?: boolean;
 }): Promise<void> {
   const apiKey = envVar("RESEND_API_KEY");
   if (!apiKey) throw new Error("RESEND_API_KEY not set");
@@ -78,9 +86,9 @@ export async function sendEmail(args: {
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       from: sender(),
-      to: Array.isArray(args.to) ? args.to : [args.to],
+      to: args.test ? [INTAKE_REPORT_TO] : Array.isArray(args.to) ? args.to : [args.to],
       reply_to: args.replyTo || REPLY_TO,
-      subject: args.subject,
+      subject: args.test ? `[TEST → ${Array.isArray(args.to) ? args.to.join(", ") : args.to}] ${args.subject}` : args.subject,
       html: args.html,
       text: args.text,
       attachments: args.attachments?.length ? args.attachments : undefined,
@@ -140,6 +148,7 @@ export async function sendClientWelcome(args: IntakeArgs): Promise<boolean> {
     html,
     text,
     attachments: args.pdf ? [args.pdf] : undefined,
+    test: args.test,
   });
   return true;
 }
@@ -199,6 +208,7 @@ export async function sendIntakeNotification(args: IntakeArgs): Promise<void> {
     html,
     text,
     attachments: args.pdf ? [args.pdf] : undefined,
+    test: args.test,
   });
 }
 
@@ -249,5 +259,6 @@ export async function sendOnboardingTask(args: IntakeArgs): Promise<void> {
     html,
     text,
     attachments: args.pdf ? [args.pdf] : undefined,
+    test: args.test,
   });
 }
